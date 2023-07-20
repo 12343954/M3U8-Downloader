@@ -2,13 +2,10 @@
 
 <table>
 <tr>
-<td><img width="700" src="resource/1.png" alt="M3U8-Downloader"></td>
-<td><img width="700" src="resource/2.png" alt="M3U8-Downloader"></td>
+<td>[![Watch the video](resource/1.png)]([https://youtu.be/vt5fpE0bzSY](https://github.com/12343954/M3U8-Downloader/assets/1804003/94a9a2fa-6727-47e2-8949-5a337963556b))</td>
 </tr>
 <tr>
-<td colspan="2" style="text-align:center;">
-<img width="700" src="resource/2.png" alt="M3U8-Downloader">
-</td>
+<td><img width="700" src="resource/2.png" alt="M3U8-Downloader"></td>
 <tr>
 </table>
 <br/>
