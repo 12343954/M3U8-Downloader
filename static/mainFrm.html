@@ -6,104 +6,106 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title></title>
     <link rel="stylesheet" href="lib/element.ui/theme-chalk/index.css">
+    <link rel="stylesheet" href="lib/fontawesome-free-6.3.0-web/css/fontawesome.css">
     <link rel="stylesheet" href="css/start.css">
+    <script src="scripts/global-vars.js"></script>
 </head>
 
 <body class="heisir">
+
     <div id="app">
         <template>
             <el-container>
                 <el-header v-if="platform != 'darwin'" class="header" height='40px'>
                     <el-row>
                         <el-col :span="14">
-                            <div class="title">{{'M3U8-Downloader v' + version}}</div>
+                            <div class="title">{{'M3U8 Downloader'}}</div>
                         </el-col>
                     </el-row>
 
                     <div class="systemTool">
-                        <el-dropdown trigger="click">
-                            <span class="el-dropdown-link">关于</span>
-                            <el-dropdown-menu slot="dropdown">
-                                <el-dropdown-item icon="el-icon-link">
-                                    <a class="mylink" href="https://tools.heisir.cn/HLSDownload/"
-                                        v-on:click.stop.prevent="clickAClick">官网</a>
-                                </el-dropdown-item>
-                                <el-dropdown-item icon="el-icon-link">
-                                    <a class="mylink" href="https://github.com/HeiSir2014/M3U8-Downloader"
-                                        v-on:click.stop.prevent="clickAClick">开放源码</a>
-                                </el-dropdown-item>
-                                <el-dropdown-item icon="el-icon-connection">
-                                    <a class="mylink" href="https://jq.qq.com/?_wv=1027&k=nhFrZBS0"
-                                        v-on:click.stop.prevent="clickAClick">点击加群</a>
-                                </el-dropdown-item>
-                                <el-dropdown-item icon="el-icon-connection">
-                                    <a class="mylink" href="#" v-on:click.stop.prevent="clickStartHookUrl">资源嗅探</a>
-                                </el-dropdown-item>
-                            </el-dropdown-menu>
-                        </el-dropdown>
-                        <el-button class="button" icon="el-icon-setting" v-on:click="tabPane = 'setting'"></el-button>
-                        <el-button class="button" icon="el-icon-close" v-on:click="clickClose"></el-button>
+                        <el-button class="button" v-on:click="clickMinWindow">__</el-button>
+                        <el-button class="button" icon="el-icon-full-screen" v-on:click="clickMaxWindow"></el-button>
+                        <el-button class="button close" icon="el-icon-close" v-on:click="clickClose"></el-button>
                     </div>
                 </el-header>
                 <el-main class="main">
                     <el-tabs tab-position="left" type="border-card" style="height: 100%;">
                         <el-tab-pane>
-                            <span slot="label"><i class="el-icon-download"></i> 资源下载</span>
+                            <span slot="label"><i class="el-icon-download"></i> {{ $t('sidebar.download') }}</span>
                             <el-tabs type="border-card" v-model="tabPane">
-                                <el-tab-pane label="M3U8视频下载">
-                                    <el-row :gutter="8">
-                                        <el-col :span="3" :offset="1">
+                                <el-tab-pane :label="$t('tabs.singleDownload')">
+                                    <el-row type="flex" justify="end" style="margin:auto 4%;">
+                                        <el-col :span="4">
                                             <el-button class="mybutton" type="primary" icon="el-icon-news"
-                                                @click="clickNewTask">新建下载</el-button>
+                                                @click="clickNewTask">{{$t('singleDownload.buttons.newTask')}}</el-button>
                                         </el-col>
-                                        <el-col :span="4" :offset="1">
-                                            <el-button class="mybutton" type="danger" icon="el-icon-news"
-                                                @click="clickClearTask">清空下载任务( {{allVideos.length}} )</el-button>
+                                        <el-col :span="1">
                                         </el-col>
-                                        <el-col v-show="false" :span="4" :offset="11">
+                                        <el-col :span="8">
+                                            <el-button class="mybutton" type="danger" icon="el-icon-delete"
+                                                @click="clickClearTask">
+                                                {{$t('singleDownload.buttons.clearCompletedTasks',{finish:
+                                                allVideos.filter(k=>k.status==taskStatus.done)?.length,all:allVideos.length})}}
+                                            </el-button>
+                                        </el-col>
+                                        <el-col v-show="false" :span="4" type="flex">
                                             <div class="speed el-icon-download">{{downloadSpeed}}</div>
                                         </el-col>
                                     </el-row>
                                     <ul class="list TaskList" style="overflow:auto">
                                         <li v-for="o in allVideos" :key="o.id" class="item">
                                             <div class="m3u8"></div>
-                                            <div class="link"><input type="text" :value="o.url" :title="o.url" readonly></div>
-
-                                            <div class="name"><span>名称：</span><span class="value" :title="o.taskName">{{o.taskName}}</span>
-                                            </div>
-                                            <div class="time"><span>时间：</span><span class="value" :title="o.time">{{o.time}}</span>
-                                            </div>
-                                            <div class="status">
-                                                <span>状态：</span><span class="value" :title="o.status">{{o.status}}</span>
+                                            <div class="nametitle">
+                                                <span class="name">
+                                                    <span class="value" :title="o.taskName" @click="clickPlayVideo" :data="o.id">{{o.taskName}}</span>
+                                                </span>
+                                                <p class="link">
+                                                    <span>{{o.url}}</span>
+                                                </p>
+                                                <div class="timestatus">
+                                                    <span class="time">
+                                                        <span class="value">{{o.time}}</span>
+                                                    </span>
+                                                    <span class="status">
+                                                        <span class="value">{{o.statusText}}</span>
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div class="opt">
                                                 <div class="top">
-                                                    <input class="opendir" opt="opendir" :data="o.dir" type="button"
-                                                        value="打开文件夹" @click="clickItemOptData">
-                                                </div>
-                                                <div class="bottom">
-                                                    <input class="del" opt="delvideo" :data="o.id" type="button"
-                                                        value="删除" @click="clickItemOptData">
-                                                    <input class="play" opt="playvideo" :data="o.videopath"
-                                                        type="button" value="播放" @click="clickItemOptData">
-                                                    <input class="StartStop" opt="StartOrStop" :data="o.id"
-                                                        type="button" value="停止" @click="clickItemOptData">
+                                                    <el-button class="is-text opendir" opt="opendir" :data="o.dir"
+                                                        type="success" icon="el-icon-folder-opened"
+                                                        @click="clickItemOptData"></el-button>
+                                                    <el-button class="play is-text" circle opt="playvideo"
+                                                        :data="o.videopath" type="danger" icon="fa-brands fa-youtube"
+                                                        size="mini" @click="clickItemOptData"
+                                                        v-if="o.status == taskStatus.done"></el-button>
+                                                    <el-button class="StartStop is-text" opt="StartOrStop" :data="o.id"
+                                                        circle size="mini" @click="clickItemOptData"
+                                                        :type="o.status == taskStatus.pause ? 'warning' : 'primary'"
+                                                        :icon="o.status == taskStatus.pause ? 'el-icon-download' : 'fas fa-circle-notch fa-spin'"
+                                                        v-if="o.status != taskStatus.done"></el-button>
+                                                    <el-button class="del is-text" circle opt="delvideo" :data="o.id"
+                                                        type="" icon="el-icon-close" @click="clickItemOptData"
+                                                        size="mini"></el-button>
                                                 </div>
                                             </div>
                                         </li>
                                         <el-alert v-if="!allVideos.length"
-                                            style="margin-top: 10px; height: 100px; line-height: 1;"
-                                            title="您还没有添加下载任务，在浏览器里嗅探到M3U8(HLS协议)视频流后，可以在这里缓存下载，快来试试吧。" type="success"
-                                            effect="light" :closable="false" :center="true" show-icon></el-alert>
+                                            style="margin-top: 10px;line-height:1;white-space:pre-line;text-align:center;width:60%;margin:10% auto;max-width:600px;"
+                                            :title="$t('singleDownload.tips.noTasks')" type="success" effect="light"
+                                            :closable="false" :center="true" show-icon></el-alert>
                                     </ul>
-                                    <el-dialog title="新建下载任务" :visible.sync="dlg_newtask_visible" width="60%"
-                                        :modal="true" :close-on-click-modal="false" :close-on-press-escape="false"
-                                        :center="false">
-                                        <el-form label-width="80px">
-                                            <el-form-item label="视频源" label-position="right">
+                                    <el-dialog :title="$t('newTask.title')" :visible.sync="dlg_newtask_visible"
+                                        width="60%" :modal="true" :close-on-click-modal="false"
+                                        :close-on-press-escape="false" :center="false">
+                                        <el-form label-width="100px">
+                                            <el-form-item :label="$t('newTask.inputs.url.label')"
+                                                label-position="right">
                                                 <div @drop="dropM3U8File" @dragover.prevent @dragenter.prevent>
-                                                    <el-input placeholder="输入在线网络视频源URL，或将M3U8文件拖拽至此" v-model="m3u8_url"
-                                                        draggable="false" @input="m3u8UrlChange">
+                                                    <el-input :placeholder="$t('newTask.inputs.url.holder')"
+                                                        v-model="m3u8_url" draggable="false" @input="m3u8UrlChange">
                                                         <i slot="prefix" class="el-input__icon el-icon-link"></i>
                                                         <i slot="suffix" class="el-input__icon el-icon-folder-opened"
                                                             @click="clickSelectM3U8"></i>
@@ -118,38 +120,46 @@
                                                     </el-option>
                                                 </el-select>
                                             </el-form-item>
-                                            <el-form-item label="任务名" label-position="right">
-                                                <el-input type="text" placeholder="[可空] 默认当前时间戳" v-model="taskName">
+                                            <el-form-item :label="$t('newTask.inputs.taskName.label')"
+                                                label-position="right">
+                                                <el-input type="text"
+                                                    :placeholder="$t('newTask.inputs.taskName.holder')"
+                                                    v-model="taskName">
                                                 </el-input>
                                             </el-form-item>
-                                            <el-form-item label="URL前缀" label-position="right"
-                                                v-if="m3u8_url.startsWith('file:///')">
+                                            <el-form-item :label="$t('newTask.inputs.urlPrefix.label')"
+                                                label-position="right" v-if="m3u8_url?.startsWith('file:///')">
                                                 <el-tooltip effect="light" placement="top-start">
-                                                    <div slot="content">
-                                                        如果M3U8文件是从网上直接下载下来的，TS流是在网络上的且M3U8文件里没有URL(http)前缀，就需要填写<br /><br />
-                                                        如果TS视频流在M3U8文件目录下，则不需要填写这块<br /></div>
+                                                    <div slot="content" style="white-space:pre-line;">
+                                                        {{$t('newTask.inputs.urlPrefix.content')}}
+                                                    </div>
                                                     <el-input type="text"
-                                                        placeholder="[可空] M3U8 URL前缀，例如：http://heisir.cn/cdn/123456/"
+                                                        :placeholder="$t('newTask.inputs.urlPrefix.holder')"
                                                         v-model="m3u8_url_prefix"></el-input>
                                                 </el-tooltip>
                                             </el-form-item>
-                                            <el-form-item label="附加头" label-position="right">
-                                                <el-input type="textarea" :rows="4" placeholder="[可空] 请输入一行一个Header，例如：
-                Origin: http://www.host.com
-                Referer: http://www.host.com" v-model="headers"></el-input>
+                                            <el-form-item :label="$t('newTask.inputs.httpHeaders.label')"
+                                                label-position="right">
+                                                <el-input type="textarea" :rows="4"
+                                                    :placeholder="$t('newTask.inputs.httpHeaders.holder')"
+                                                    v-model="headers"></el-input>
                                             </el-form-item>
-                                            <el-form-item label="私有KEY" label-position="right">
+                                            <el-form-item :label="$t('newTask.inputs.privateKey.label')"
+                                                label-position="right">
                                                 <el-tooltip effect="light" placement="top-start">
-                                                    <div slot="content">
-                                                        32位HEX格式KEY和32位IV值，IV值可空<br />示例：<br />ABABABABABBBBBBBABABABABABBBBBBBABABABABABBBBBBBABABABABABBBBBBB<br />或者：<br />ABABABABABBBBBBBABABABABABBBBBBB<br />
+                                                    <div slot="content" style="white-space:pre-line;">
+                                                        {{$t('newTask.inputs.privateKey.content')}}
                                                     </div>
-                                                    <el-input type="text" placeholder="[可空] KEY和IV值(HEX格式)"
+                                                    <el-input type="text"
+                                                        :placeholder="$t('newTask.inputs.privateKey.holder')"
                                                         v-model="myKeyIV">
                                                     </el-input>
                                                 </el-tooltip>
                                             </el-form-item>
-                                            <el-form-item label="合并完成" label-position="right">
-                                                <el-checkbox v-model="taskIsDelTs" label="删除TS片段"></el-checkbox>
+                                            <el-form-item :label="$t('newTask.inputs.merge.label')"
+                                                label-position="right">
+                                                <el-checkbox v-model="taskIsDelTs"
+                                                    :label="$t('newTask.inputs.merge.holder')"></el-checkbox>
                                             </el-form-item>
                                         </el-form>
                                         <div slot="footer" class="dialog-footer">
@@ -160,44 +170,77 @@
                                                 </el-col>
                                                 <el-col :span="8" :offset="1">
                                                     <el-button type="primary" @click="clickNewTaskOK"
-                                                        style="width: 100%;">确 定
+                                                        style="width: 100%;">{{$t('newTask.buttons.confirm')}}
+                                                    </el-button>
+                                                </el-col>
+                                            </el-row>
+                                        </div>
+                                    </el-dialog>
+                                    <el-dialog :title="$t('deleteTask.title')" :visible.sync="dlg_deltask_visible"
+                                        width="40%" :modal="true" :close-on-click-modal="true"
+                                        :close-on-press-escape="true" :center="true">
+                                        <el-form label-width="80px" style="margin: 2rem 0;">
+                                            <p style="font-size: 1rem;text-align: center;color: #bfbdbd;">
+                                                {{dlg_deltask_name}}</p>
+                                            <p style="text-align: center;margin-top: 1rem;">
+                                                <el-checkbox v-model="dlg_deltask_isDelFile"
+                                                    :label="$t('deleteTask.buttons.withFile')"></el-checkbox>
+                                            </p>
+                                        </el-form>
+                                        <div slot="footer" class="dialog-footer">
+                                            <el-row :gutter="20">
+                                                <el-col :span="8" :offset="4">
+                                                    <el-button type="info" @click="clickDelTaskCancel"
+                                                        style="width: 100%;">{{$t('deleteTask.buttons.cancel')}}
+                                                    </el-button>
+                                                </el-col>
+                                                <el-col :span="8" :offset="1">
+                                                    <el-button type="primary" @click="clickDelTaskOK"
+                                                        style="width: 100%;">{{$t('deleteTask.buttons.ok')}}
                                                     </el-button>
                                                 </el-col>
                                             </el-row>
                                         </div>
                                     </el-dialog>
                                 </el-tab-pane>
-                                <el-tab-pane label="M3U8批量下载">
+                                <el-tab-pane :label="$t('tabs.multiDownload')">
                                     <el-form label-width="130px" style="margin-right: 65px;">
-                                        <el-form-item label="批量视频源" label-position="right">
-                                            <el-input type="textarea" :rows="6" placeholder="请输入一行一个M3U8视频源，格式：视频源----任务名（可空）,例如：
-                https://host/index1.m3u8----第一个视频
-                https://host/index2.m3u8----第二个视频
-                https://host/index3.m3u8" v-model="m3u8_urls"></el-input>
+                                        <el-form-item :label="$t('multiDownload.inputs.m3u8Urls.label')"
+                                            label-position="right">
+                                            <el-input type="textarea" :rows="6"
+                                                :placeholder="$t('multiDownload.inputs.m3u8Urls.holder')"
+                                                v-model="m3u8_urls"></el-input>
                                         </el-form-item>
-                                        <el-form-item label="附加头" label-position="right">
-                                            <el-input type="textarea" :rows="4" placeholder="[可空] 请输入一行一个Header，例如：
-                Origin: http://www.host.com
-                Referer: http://www.host.com" v-model="headers"></el-input>
+                                        <el-form-item :label="$t('multiDownload.inputs.headers.label')"
+                                            label-position="right">
+                                            <el-input type="textarea" :rows="4"
+                                                :placeholder="$t('multiDownload.inputs.headers.holder')"
+                                                v-model="headers"></el-input>
                                         </el-form-item>
-                                        <el-form-item label="合并完成" label-position="right">
-                                            <el-checkbox v-model="taskIsDelTs" label="删除TS片段"></el-checkbox>
+                                        <el-form-item :label="$t('multiDownload.inputs.afterMerge.label')"
+                                            label-position="right">
+                                            <el-checkbox v-model="taskIsDelTs"
+                                                :label="$t('multiDownload.inputs.afterMerge.holder')"></el-checkbox>
                                         </el-form-item>
                                         <el-form-item>
-                                            <el-button class="mybutton" type="primary" @click="clickNewTaskMuti">批量下载
+                                            <el-button class="mybutton" type="primary" @click="clickNewTaskMuti">
+                                                {{$t('multiDownload.buttons.multiDownload')}}
                                             </el-button>
                                         </el-form-item>
                                     </el-form>
                                 </el-tab-pane>
-                                <el-tab-pane label="合并视频片段">
+                                <el-tab-pane :label="$t('tabs.mergeTS')">
                                     <el-row :gutter="8" style="margin-bottom: 5px;">
-                                        <el-col :span="2" :offset="1">
-                                            <span style="line-height: 40px;float: right;">视频片段</span>
+                                        <el-col :span="3" :offset="1">
+                                            <label
+                                                class="el-form-item__label">{{$t('mergeTS.inputs.tsDir.label')}}</label>
+                                            <!-- <span style="line-height: 40px;float: right;">视频片段</span> -->
                                         </el-col>
                                         <el-col :span="20">
                                             <div @drop="dropTSFiles" @dragover.prevent @dragenter.prevent>
-                                                <el-input placeholder="选择一个包含TS流的目录或将所有TS文件拖拽至此" v-model="ts_dir"
-                                                    clearable draggable="false">
+                                                <el-input :placeholder="$t('mergeTS.inputs.tsDir.holder')"
+                                                    v-model="ts_dir" clearable draggable="false"
+                                                    @clear="clickClearMergeTS">
                                                     <i slot="suffix" class="el-input__icon el-icon-folder-opened"
                                                         @click="clickSelectTSDir"></i>
                                                 </el-input>
@@ -205,45 +248,52 @@
                                         </el-col>
                                     </el-row>
                                     <el-row :gutter="8" style="margin-bottom: 5px;">
-                                        <el-col :span="2" :offset="1">
-                                            <span style="line-height: 40px;float: right;">合并名称</span>
+                                        <el-col :span="3" :offset="1">
+                                            <label
+                                                class="el-form-item__label">{{$t('mergeTS.inputs.tsTaskName.label')}}</label>
                                         </el-col>
                                         <el-col :span="20">
-                                            <el-input placeholder="[可空] 默认当前时间戳" v-model="tsTaskName" clearable
-                                                draggable="false"></el-input>
+                                            <el-input :placeholder="$t('mergeTS.inputs.tsTaskName.holder')"
+                                                v-model="tsTaskName" clearable draggable="false"></el-input>
                                         </el-col>
                                     </el-row>
                                     <el-row :gutter="8" style="margin-bottom: 5px;">
                                         <el-col :span="7" :offset="3">
                                             <div>
                                                 <el-radio style="line-height: 40px;" v-model="tsMergeType"
-                                                    label="speed">快速合并
+                                                    label="speed">{{$t('mergeTS.buttons.quickMerge')}}
                                                 </el-radio>
                                                 <el-radio style="line-height: 40px;" v-model="tsMergeType"
                                                     label="transcoding">
-                                                    修复合并(慢|转码)</el-radio>
+                                                    {{$t('mergeTS.buttons.fixMerge')}}
+                                                </el-radio>
                                             </div>
                                         </el-col>
                                         <el-col :span="6" :offset="1">
-                                            <span style="line-height: 40px;">共导入 {{ts_urls.length}} 个视频片段</span>
+                                            <span
+                                                style="line-height: 40px;color: #ccc;">{{$t('mergeTS.tips.total',{total:ts_urls.length})}}</span>
                                         </el-col>
-                                        <el-col :span="3" :offset="1">
+                                        <el-col :span="4" :offset="1">
                                             <el-button class="mybutton" type="primary" @click="clickStartMergeTS"
-                                                :disabled="ts_urls.length==0">开始合并</el-button>
+                                                :disabled="ts_urls.length==0">{{$t('mergeTS.buttons.startMerge')}}</el-button>
                                         </el-col>
                                         <el-col :span="2">
                                             <el-button class="mybutton" type="danger" @click="clickClearMergeTS"
-                                                :disabled="ts_urls.length==0">清空</el-button>
+                                                :disabled="ts_urls.length==0">{{$t('mergeTS.buttons.clearForm')}}</el-button>
                                         </el-col>
                                     </el-row>
 
                                     <el-row :gutter="8" style="margin-top: 10px;margin-bottom: 5px;"
                                         v-if="tsMergeStatus">
-                                        <el-col :span="2" :offset="1">
+                                        <el-col :span="4" :offset="1">
                                             <span v-if="tsMergeStatus !='success'"
-                                                style="line-height: 100px;float: right;">合并进度</span>
+                                                style="line-height: 100px;color: #ccc;">
+                                                {{$t('mergeTS.inputs.mergeProgress')}}
+                                            </span>
                                             <span v-if="tsMergeStatus =='success'"
-                                                style="line-height: 40px;float: right;">查看文件</span>
+                                                style="line-height: 40px;color: #ccc;">
+                                                {{$t('mergeTS.inputs.viewFile')}}
+                                            </span>
                                         </el-col>
                                         <el-col :span="6" v-if="tsMergeStatus !='success'">
                                             <el-progress type="circle" :percentage="tsMergeProgress" status="success"
@@ -251,18 +301,21 @@
                                         </el-col>
                                         <el-col :span="4" v-else>
                                             <el-button class="mybutton" type="success" @click="clickOpenMergeTSDir">
-                                                打开文件夹
+                                                {{$t('mergeTS.buttons.openFolder')}}
                                             </el-button>
                                         </el-col>
                                         <el-col :span="4" v-if="tsMergeMp4Path">
-                                            <el-button class="mybutton" type="success" @click="clickPlayMergeMp4">播放视频
+                                            <el-button class="mybutton" type="success" @click="clickPlayMergeMp4">
+                                                {{$t('mergeTS.buttons.playVideo')}}
                                             </el-button>
                                         </el-col>
                                     </el-row>
 
                                     <el-row :gutter="8" v-if="tsMergeStatus !='success' && tsMergeStatus">
-                                        <el-col :span="2" :offset="1">
-                                            <span style="line-height: 40px;float: right;">日志</span>
+                                        <el-col :span="3" :offset="1">
+                                            <span style="line-height: 40px;float: right;">
+                                                {{$t('mergeTS.inputs.log')}}
+                                            </span>
                                         </el-col>
                                         <el-col :span="20">
                                             <el-input type="textarea" :rows="4" readonly placeholder=""
@@ -273,35 +326,37 @@
                                 </el-tab-pane>
                             </el-tabs>
                         </el-tab-pane>
-                        <el-tab-pane>
+                        <!-- <el-tab-pane>
                             <span slot="label"><i class="el-icon-view"></i> 资源嗅探</span>
                             <el-container>
                                 <el-container>
                                     <el-header class="navigatorTop">
-                                        <i class="el-icon-arrow-left tooltip-icon" @click="navigateBy(-1)" title="go back"></i>
-                                        <i class="el-icon-arrow-right tooltip-icon" @click="navigateBy(1)" title="go forward"></i>
-                                        <i class="el-icon-refresh-right tooltip-icon" @click="navigateBy(0)" title="reload this page"></i>
-                                        <el-input type="text" v-model="navigatorInput" placeholder="请输入 url" clearable @change="clickNaviagte"></el-input>
+                                        <el-input type="text" v-model="navigatorInput" placeholder="请输入 url" clearable
+                                            @change="clickNaviagte"></el-input>
                                     </el-header>
                                     <el-main style="padding: 0;">
                                         <webview id="browser" style="height: 100%;" :src="navigatorUrl"
-                                         :useragent="currentUserAgent"></webview>
+                                            :useragent="currentUserAgent"></webview>
                                     </el-main>
                                 </el-container>
-                                <el-aside class="videoPanel" v-if="browserVideoUrls && browserVideoUrls.length" width="300px">
+                                <el-aside class="videoPanel" v-if="browserVideoUrls && browserVideoUrls.length"
+                                    width="300px">
                                     <ul>
                                         <li class="videoItem" v-for="item in browserVideoUrls">
                                             <el-row :gutter="10">
                                                 <el-col :span="6"><el-label>{{item.type}}</el-label></el-col>
-                                                <el-col :span="18"><el-input type="text" readonly :value="item.url"></el-input></el-col>
+                                                <el-col :span="18"><el-input type="text" readonly
+                                                        :value="item.url"></el-input></el-col>
                                             </el-row>
                                             <el-row :gutter="10">
                                                 <el-col :span="6"><el-label>HEADER</el-label></el-col>
-                                                <el-col :span="18"><el-input type="text" readonly :value="item.headers"></el-input></el-col>
+                                                <el-col :span="18"><el-input type="text" readonly
+                                                        :value="item.headers"></el-input></el-col>
                                             </el-row>
                                             <el-row v-if="item.key" :gutter="10">
                                                 <el-col :span="6"><el-label>KEY</el-label></el-col>
-                                                <el-col :span="18"><el-input type="text" readonly :value="item.key"></el-input></el-col>
+                                                <el-col :span="18"><el-input type="text" readonly
+                                                        :value="item.key"></el-input></el-col>
                                             </el-row>
                                             <el-row :gutter="10">
                                                 <el-col :offset="8" :span="8"><el-button>浏览</el-button></el-col>
@@ -311,69 +366,91 @@
                                     </ul>
                                 </el-aside>
                             </el-container>
-                        </el-tab-pane>
+                        </el-tab-pane> -->
                         <el-tab-pane label="软件设置">
-                            <span slot="label"><i class="el-icon-s-tools"></i> 软件设置</span>
+                            <span slot="label"><i class="el-icon-s-tools"></i> {{ $t('sidebar.settings') }}</span>
                             <el-row :gutter="8">
-                                <el-col :span="2" :offset="1">
-                                    <span style="line-height: 40px;float: right;">视频存储</span>
+                                <el-col :span="3" :offset="1">
+                                    <span
+                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.saveFolder.label')}}</span>
                                 </el-col>
-                                <el-col :span="18">
-                                    <el-input placeholder="请单击右侧按钮选择存储文件夹" v-model="config_save_dir" :readonly="true">
+                                <el-col :span="16">
+                                    <el-input :placeholder="$t('settings.inputs.saveFolder.holder')"
+                                        v-model="config_save_dir" :readonly="true">
                                     </el-input>
                                 </el-col>
-                                <el-col :span="2">
+                                <el-col :span="3">
                                     <el-button class="mybutton" type="primary" icon="el-icon-folder-opened"
-                                        @click="clickOpenConfigDir">浏览</el-button>
+                                        @click="clickOpenConfigDir">{{$t('settings.buttons.browser')}}</el-button>
                                 </el-col>
                             </el-row>
                             <br />
                             <el-row :gutter="8">
-                                <el-col :span="2" :offset="1">
-                                    <span style="line-height: 40px;float: right;">日志</span>
+                                <el-col :span="3" :offset="1">
+                                    <span
+                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.log.label')}}</span>
                                 </el-col>
                                 <el-col :span="4">
                                     <el-button class="mybutton" type="primary" icon="el-icon-view"
-                                        @click="clickOpenLogDir">查看日志目录</el-button>
+                                        @click="clickOpenLogDir">{{$t('settings.buttons.viewLog')}}</el-button>
                                 </el-col>
                                 <el-col :span="4" :offset="1">
-                                    <span style="line-height: 40px;float: right;">HTTP代理</span>
+                                    <span
+                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.proxy.label')}}</span>
                                 </el-col>
-
-                                <el-col :span="9">
-                                    <el-input placeholder="请输入HTTP代理(如：http://127.0.0.1:7890 )" v-model="config_proxy"
+                                <el-col :span="10">
+                                    <el-input :placeholder="$t('settings.inputs.proxy.holder')" v-model="config_proxy"
                                         @change="proxyChange"></el-input>
                                 </el-col>
                             </el-row>
-                            <br>
-                            <el-divider><i class="el-icon-coffee"></i></el-divider>
-                            <el-row :gutter="8">
-                                <el-col :span="4" :offset="7">
-                                    <el-card class="paycode alipay" shadow="always">
-                                        <img class="image" src="icon/alipay_code.png">
-                                        <div style="padding: 14px;word-break: keep-all;">
-                                            <span>支付宝赞助</span>
-                                        </div>
-                                    </el-card>
+                            <br />
+                            <el-row>
+                                <el-col :span="3" :offset="1">
+                                    <span
+                                        style="line-height: 40px;float: right;color: #ccc;margin-right: 10px;">{{$t('settings.inputs.language.label')}}</span>
                                 </el-col>
-                                <el-col :span="4" :offset="2">
-                                    <el-card class="paycode wechat" shadow="always">
-                                        <img class="image" src="icon/wechat_code.png">
-                                        <div style="padding: 14px;word-break: keep-all;">
-                                            <span>微信赞助</span>
-                                        </div>
-                                    </el-card>
+                                <el-col :span="4">
+                                    <el-select v-model="config_language" style="width: 100%;" @change="languageChange">
+                                        <el-option v-for="lang in languages" :key="lang.lang" :label="lang.lang"
+                                            :value="lang.value">
+                                        </el-option>
+                                    </el-select>
+                                </el-col>
+                                <el-col :span="4" :offset="1">
+                                    <span
+                                        style="line-height: 40px;float: right;color: #909399;">{{$t('about.version')}}</span>
+                                </el-col>
+                                <el-col :span="10">
+                                    <span style="line-height:34px;margin-left:1rem;">
+                                        <el-link type="info" target="_blank" :underline="false"
+                                            :href="newVersion_download_url">v{{version == newVersion ? version :
+                                            newVersion}}<sup
+                                                style="color: #ff2929;margin-left:10px;font-size:10px;">{{version ==
+                                                newVersion? '' : $t('about.newVersion')}}</sup></el-link></span>
                                 </el-col>
                             </el-row>
-                            <el-row :gutter="8">
-                                <el-col :span="12" :offset="6">
-                                    <el-alert title="开发不易，如果您觉得此款软件对您有帮助，可以请小哥哥喝杯咖啡吗?" type="error" :center="true"
-                                        :closable="false">
-                                    </el-alert>
+                            <!-- <el-divider><i class="el-icon-coffee"></i></el-divider> -->
+                            <el-row :gutter="8" style="position: fixed;bottom: 2rem;width: 82%;right: 1rem;">
+                                <!-- <el-col :span="4" :offset="6" style="margin-right: 2rem;">
+                                    <el-button class="mybutton" type="info" icon="el-icon- fa fa-home"
+                                        style="max-width: 300px;" href="https://github.com/12343954/M3U8-Downloader"
+                                        @click="clickOpenLogDir">{{$t('about.offical')}}</el-button>
+                                </el-col> -->
+                                <el-col :span="4" :offset="6" style="margin-right: 2rem;">
+                                    <el-button class="mybutton" type="info" icon="el-icon- fab fa-github"
+                                        style="max-width: 300px;"
+                                        @click="clickOpenGithub">{{$t('about.github')}}</el-button>
+                                </el-col>
+                                <el-col :span="6">
+                                    <el-button class="mybutton" type="info" icon="el-icon-coffee-cup"
+                                        style="max-width: 400px;"
+                                        @click="clickOpenSponsor">{{$t('buyMEcoffe.button')}}</el-button>
                                 </el-col>
                             </el-row>
+
+
                         </el-tab-pane>
-                        <el-tab-pane label="交流反馈">
+                        <!-- <el-tab-pane label="交流反馈">
                             <span slot="label"><i class="el-icon-chat-dot-square"></i> 交流反馈</span>
                             <el-row :gutter="8">
                                 <el-col :span="22">
@@ -388,16 +465,50 @@
                                 </el-col>
                             </el-row>
                             <section id="comments" class="vcomment"></section>
-                        </el-tab-pane>
-                        <el-tab-pane label="我的信息">
+                        </el-tab-pane> -->
+                        <!-- <el-tab-pane label="我的信息">
                             <span slot="label"><i class="el-icon-s-custom"></i> 我</span>
-                        </el-tab-pane>
+                        </el-tab-pane> -->
                     </el-tabs>
+                    <el-dialog :title="$t('buyMEcoffe.title')" :visible.sync="dlg_buymecoffe_visible" width="60%"
+                        :modal="true" :close-on-click-modal="true" :close-on-press-escape="true" :center="true"
+                        style="height: 100vh;">
+                        <el-row type="flex" justify="center" align="middle" style="height:50vh;">
+                            <el-card v-if="config_language=='zh-cn'" class="paycode alipay" shadow="always"
+                                style="max-width: 256px;max-height: 300px;margin-right: 10%;">
+                                <img class="image" src="icon/alipay_code.png">
+                                <div style="padding: 14px;word-break: keep-all;">
+                                    <span>{{$t('buyMEcoffe.alipay')}}</span>
+                                </div>
+                            </el-card>
+                            <el-card v-if="config_language=='zh-cn'" class="paycode wechat" shadow="always"
+                                style="max-width: 256px;max-height: 300px;">
+                                <img class="image" src="icon/wechat_code.png">
+                                <div style="padding: 14px;word-break: keep-all;">
+                                    <span>{{$t('buyMEcoffe.wechat')}}</span>
+                                </div>
+                            </el-card>
+                            <el-card v-if="config_language != 'zh-cn'" class="paycode paypal" shadow="always"
+                                style="max-width: 256px;max-height: 300px;">
+                                <img class="image" src="icon/paypal.png">
+                                <div style="padding: 14px;word-break: keep-all;">
+                                    <span>{{$t('buyMEcoffe.paypal')}}</span>
+                                </div>
+                            </el-card>
+                        </el-row>
+                        <el-row :gutter="8" type="flex" justify="center" align="middle">
+                            <span
+                                style="width:70%;height:10vh;text-align:center;color:#cfcf00;white-space:pre-line">{{$t('buyMEcoffe.content')}}</span>
+                        </el-row>
+                    </el-dialog>
                 </el-main>
             </el-container>
         </template>
     </div>
+    <script src="lang/en.js"></script>
+    <script src="lang/zh-CN.js"></script>
     <script src="lib/vue/vue.js"></script>
+    <script src="lib/vue/vue-i18n.js"></script>
     <script src="lib/element.ui/index.js"></script>
     <script src="scripts/app-main.js"></script>
     <script src="lib/Valine/Valine.min.js"></script>
@@ -407,23 +518,23 @@
         var guest_info = 'nick'.split(',').filter(function (item) {
             return GUEST_INFO.indexOf(item) > -1
         });
-        console.log(guest_info)
+        // console.log(guest_info)
         var notify = 'false' == true;
         var verify = 'false' == true;
-        new Valine({
-            el: '.vcomment',
-            notify: notify,
-            verify: verify,
-            appId: "dYhmAWg45dtYACWfTUVR2msp-gzGzoHsz",
-            appKey: "SbuBYWY21MPOSVUCTHdVlXnx",
-            placeholder: "可以在这里进行咨询交流",
-            pageSize: '100',
-            avatar: 'mm',
-            lang: 'zh-cn',
-            meta: guest_info,
-            recordIP: true,
-            path: '/m3u8-downloader'
-        });
+        // new Valine({
+        //     el: '.vcomment',
+        //     notify: notify,
+        //     verify: verify,
+        //     appId: "dYhmAWg45dtYACWfTUVR2msp-gzGzoHsz",
+        //     appKey: "SbuBYWY21MPOSVUCTHdVlXnx",
+        //     placeholder: "可以在这里进行咨询交流",
+        //     pageSize: '100',
+        //     avatar: 'mm',
+        //     lang: 'zh-cn',
+        //     meta: guest_info,
+        //     recordIP: true,
+        //     path: '/m3u8-downloader'
+        // });
     </script>
 </body>
 

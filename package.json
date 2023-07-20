@@ -1,8 +1,8 @@
 {
   "name": "m3u8-downloader",
   "productName": "M3U8-Downloader",
-  "version": "2.1.0",
-  "description": "M3U8-Downloader，用于下载主流网站的视频和直播。",
+  "version": "2.2.2",
+  "description": "M3U8 Downloader, use for '.m3u8' url downloading.",
   "main": "main.js",
   "dependencies": {
     "aria2": "^4.1.2",
@@ -10,25 +10,25 @@
     "crypto-js": "^4.1.1",
     "dateformat": "^5.0.3",
     "download": "^8.0.0",
-    "electron-context-menu": "^3.6.0",
+    "electron-context-menu": "^3.6.1",
     "electron-is-dev": "^2.0.0",
-    "ffmpeg-static": "^5.1.0",
+    "ffmpeg-static": "5.1.0",
+    "filenamify": "4.3.0",
     "fluent-ffmpeg": "^2.1.2",
     "forever-monitor": "^3.0.3",
     "got": "11.8.3",
     "hpagent": "^1.2.0",
     "http": "0.0.0",
     "https": "^1.0.0",
-    "m3u8-parser": "^6.0.0",
+    "m3u8-parser": "^6.1.0",
     "nconf": "^0.12.0",
-    "queue": "^6.0.2",
+    "queue": "^7.0.0",
     "url": "^0.11.0",
-    "winston": "^3.8.2",
-    "filenamify": "4.3.0"
+    "winston": "^3.8.2"
   },
   "devDependencies": {
-    "electron": "^22.0.0",
-    "electron-builder": "^23.6.0"
+    "electron": "^24.6.2",
+    "electron-builder": "^24.4.0"
   },
   "scripts": {
     "start": "electron .",
@@ -41,9 +41,9 @@
     "ubuntu-latest": "yarn pack-linux"
   },
   "build": {
-    "appId": "cn.heisir.m3u8-downloader",
+    "appId": "com.coolooai.m3u8-downloader",
     "artifactName": "${productName}-${os}_${arch}-${version}.${ext}",
-    "copyright": "Copyright © 2021 ${author}",
+    "copyright": "Copyright © 2023 ${author}",
     "compression": "normal",
     "directories": {
       "output": "dist"
@@ -57,25 +57,27 @@
       "!node_modules/ffmpeg-static/ffmpeg.exe",
       "!node_modules/ffmpeg-static/ffmpeg",
       "!node_modules/ffmpeg-static/ffmpeg.ffmpeg",
-      "!static/aria2/*"
+      "!static/aria2/*",
+      "!locales/*.json"
     ],
     "asar": true,
     "win": {
-      "target": [{
+      "target": [
+        {
           "target": "nsis"
         },
         {
           "target": "zip",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         }
       ],
       "extraResources": [
         "node_modules/ffmpeg-static/ffmpeg.exe",
         "static/aria2/win32/aria2.conf",
-        "static/aria2/win32/aria2c.exe"
+        "static/aria2/win32/aria2c.exe",
+        "locales/*.json"
       ],
       "icon": "static/icon/logo-512.png"
     },
@@ -84,7 +86,8 @@
         "width": 540,
         "height": 380
       },
-      "contents": [{
+      "contents": [
+        {
           "x": 410,
           "y": 230,
           "type": "link",
@@ -99,7 +102,7 @@
     },
     "mac": {
       "hardenedRuntime": true,
-      "appId": "cn.heisir.m3u8-downloader-mac",
+      "appId": "com.coolooai.m3u8-downloader-mac",
       "category": "public.app-category.productivity",
       "target": [
         "dmg"
@@ -107,7 +110,8 @@
       "extraResources": [
         "node_modules/ffmpeg-static/ffmpeg",
         "static/aria2/darwin/aria2.conf",
-        "static/aria2/darwin/aria2c"
+        "static/aria2/darwin/aria2c",
+        "locales/*.json"
       ],
       "icon": "static/icon/logo.icns"
     },
@@ -130,20 +134,21 @@
       "extraResources": [
         "node_modules/ffmpeg-static/ffmpeg",
         "static/aria2/linux/aria2.conf",
-        "static/aria2/linux/aria2c"
+        "static/aria2/linux/aria2c",
+        "locales/*.json"
       ],
       "target": [
         "AppImage",
         "deb"
       ],
-      "maintainer": "heisir <heisir21@163.com>",
+      "maintainer": "12343954 <12343954@sina.com>",
       "category": "Utility"
     }
   },
   "author": {
-    "name": "heisir",
-    "email": "heisir21@163.com",
-    "qq": "1586462"
+    "name": "12343954",
+    "email": "12343954@sina.com"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "packageManager": "yarn@3.5.1"
 }

@@ -1,0 +1,42 @@
+{
+    "message": {
+        "hello": "hello",
+        "title": "Notice",
+        "hideWindow": "Double click to open window"
+    },
+    "system": {
+        "newVersion": "New version ({version}) detected, open the upgrade page and download the latest version",
+        "contextMenu": {
+            "showMainWindow": "Main Window",
+            "exit": "Exit"
+        },
+        "noFFMPEG": "Not found FFMPEG, can't merge the video."
+    },
+    "dialog": {
+        "title": {
+            "saveFolder": "Folder Select",
+            "selectM3U8": "Select a M3U8 file",
+            "mergeTS": "Select TS files"
+        }
+    },
+    "task": {
+        "parsingFailed": "Parsing Failed",
+        "parsingM3U8ok": "Resource OK, {count_seg} fragments, downloading...",
+        "parsingLiveOk": "Live resource parsing successfully, downloading...",
+        "multiAddOk": "Batch added OK, downloading...",
+        "initializing": "Initializing...",
+        "failedMultipleTimes": "Download failed",
+        "noFFMPEG": "No FFMPEG, no merging.",
+        "merging": "Merging...[{percent}%]",
+        "mergeFaild": "Merging failed, try merging manually",
+        "downloadFaild": "Download failed, check M3U8 validity",
+        "downloadMerging": "Downloaded, merging...",
+        "downloading": "Downloading...{count_downloaded}/{count_seg} [{percent}]",
+        "startMerge": "Start merging...",
+        "mergeFailedMsg": "Merge faild: {error}",
+        "pause": "Pause...{count_downloaded}/{count_seg} [{percent}]",
+        "done": "Done",
+        "downloadLiveStreaming": "Live Stream...[{count_downloaded}]",
+        "downloadButFaild": "Done, but faild"
+    }
+}
