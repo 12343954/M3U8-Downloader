@@ -1,7 +1,9 @@
 
 [![video](resource/1.png)](https://github.com/12343954/M3U8-Downloader/assets/1804003/94a9a2fa-6727-47e2-8949-5a337963556b)
 
-<img src="resource/2.png" alt="M3U8-Downloader"></td>
+<img src="resource/1.png" alt="M3U8-Downloader" />
+
+<img src="resource/2.png" alt="M3U8-Downloader" />
 
 <br/>
 <br/>
