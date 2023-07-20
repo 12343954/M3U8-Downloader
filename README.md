@@ -1,13 +1,8 @@
 
+[![asciicast](resource/1.png)]([https://asciinema.org/a/113463](https://github.com/12343954/M3U8-Downloader/assets/1804003/94a9a2fa-6727-47e2-8949-5a337963556b))
 
-<table>
-<tr>
-<td>[![Watch the video](resource/1.png)]([https://youtu.be/vt5fpE0bzSY](https://github.com/12343954/M3U8-Downloader/assets/1804003/94a9a2fa-6727-47e2-8949-5a337963556b))</td>
-</tr>
-<tr>
-<td><img width="700" src="resource/2.png" alt="M3U8-Downloader"></td>
-<tr>
-</table>
+<img width="700" src="resource/2.png" alt="M3U8-Downloader"></td>
+
 <br/>
 <br/>
 
