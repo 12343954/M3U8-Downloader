@@ -33,7 +33,7 @@ An app developed based on the Electron framework that can download and play HLS 
 <li>Dark theme, protect eyes</li>
 <li>Free and open source, no ads</li>
 <li>No tracking, no backdoors</li>
-<li>Multi-platform support, macOS, Win10+, Linux(No Test)</li>
+<li>Multi-platform support, macOS, Win10+, Linux</li>
 </ol>
 </td>
 </tr>
