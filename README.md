@@ -27,6 +27,7 @@ An app developed based on the Electron framework that can download and play HLS 
 <li>Download `m3u8` url</li>
 <li>Auto-recognizes the clipboard</li>
 <li>Batch downloads</li>
+<li>Video category</li>
 <li>Merge TS fragments manually</li>
 <li>Custom http-header parameters</li>
 <li>Multiple language support</li>
@@ -42,6 +43,7 @@ An app developed based on the Electron framework that can download and play HLS 
 <td>
 <ol>
 <li>Rotate the screen</li>
+<li>Play other local meida files</li>
 </ol>
 </td>
 </tr>
