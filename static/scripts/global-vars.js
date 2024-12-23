@@ -1,3 +1,5 @@
+// mainFrame.html 不需要require('./global-vars')，已在<header>里引用
+// main.js里可以require本js
 const taskStatus = {
     parsingFailed: 0,   //解析失败
     parsingM3U8ok: 1,   //资源解析成功，有 {count_seg} 个片段，开始下载...
@@ -17,10 +19,12 @@ const taskStatus = {
     downloadButFaild: 15,   //已完成，下载失败
     pause: 16,          //暂停
     done: 17,           //已完成
+    checkM3U8url: 18,   //解析m3u8 url中
+    saveFolderNoExist: 19, //存储目录不存在
 }
 
 const httpHeader = {
-    'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.41"
+    'user-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
 }
 
 const percentFormatter = new Intl.NumberFormat('default', {
@@ -33,9 +37,24 @@ function percentFormat(num, total) {
     return percentFormatter.format(num / total);
 }
 
+const dateFormat = (dt) => {
+    return new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().replace(/T|(\.\d+Z)/g, ' ').trim()
+}
+
+function timeBeauty(time) {
+    let today = dateFormat(new Date())
+    today = today.substring(0, today.indexOf(' '))
+    if (time && time.startsWith(today)) {
+        return `🔅 ${new Date(time).toLocaleTimeString()}`
+    }
+
+    return time;
+}
 
 module.exports = {
     taskStatus,
     httpHeader,
     percentFormat,
+    dateFormat,
+    timeBeauty,
 };

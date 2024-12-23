@@ -31,7 +31,7 @@ html {
 .heisir .header {
     position: fixed;
     height: 30px;
-    background: linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.28819467240021013) 100%);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.28819467240021013) 100%);
     -webkit-app-region: drag;
     width: 100vw;
     left: 0;
@@ -75,6 +75,25 @@ html {
     color: #cbd5dc;
 }
 
+.heisir .header button{
+    width: 48px;
+    height: 30px;
+    position: absolute;
+    right: 0px;
+    border: 0;
+    outline: none;
+    background-repeat: no-repeat;
+    background-size: 12px 12px;
+    background-position: center;
+    background-color: #00000000;
+    -webkit-app-region: no-drag;
+}
+
+.heisir .header button:hover
+{
+    background-color: #404040;
+}
+
 .heisir .header .close {
     width: 48px;
     height: 30px;
@@ -95,6 +114,52 @@ html {
 .heisir .header .close:visited {
     background-color: #e72737;
     background-image: url(../icon/close-hover.png);
+}
+
+.heisir .header .open {
+    width: 48px;
+    height: 30px;
+    position: absolute;
+    right: 48px;
+    border: 0;
+    background-image: url(../icon/opened_folder.png);
+    background-repeat: no-repeat;
+    background-size: 18px;
+    background-position: center;
+    background-color: #00000000;
+    -webkit-app-region: no-drag;
+}
+
+.heisir .header .open:hover{
+    background-color: #404040;
+    background-image: url(../icon/opened_folder_hover.png);
+}
+
+.heisir .header .open:visited {
+    background-color: #00000000;
+    background-image: url(../icon/opened_folder.png);
+}
+
+.heisir .header .pin{
+    right: 96px;
+    background-image: url(../icon/pin.png);
+    background-size: 18px;
+}
+
+.heisir .header .pin:hover{
+    /* background-color: #404040; */
+    background-image: url(../icon/pin_hover.png);
+}
+
+.heisir .header .pin.active{
+    background-color: #00000000;
+    background-image: url(../icon/pin_active.png);
+    background-size: 16px;
+}
+
+.heisir .header .pin.active:hover{
+    background-color: #404040;
+    /* background-image: url(../icon/pin_un.png); */
 }
 
 .heisir .main {

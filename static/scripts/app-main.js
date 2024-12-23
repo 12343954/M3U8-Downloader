@@ -1,6 +1,8 @@
 const { ipcRenderer } = require('electron');
 const { shell } = require('electron');
-// const { taskStatus, httpHeader, percentFormat } = require('./global-vars')
+// const isDev = require('electron-is-dev');
+
+window.current_tag = ''
 
 const i18n = new VueI18n({
     locale: 'en',
@@ -15,6 +17,7 @@ const _app = new Vue({
     data: function () {
         return {
             taskStatus,
+            isDev: false,
             version: '',
             newVersion: '',
             newVersion_download_url: 'https://github.com/12343954/M3U8-Downloader/releases',
@@ -35,13 +38,21 @@ const _app = new Vue({
             config_ffmpeg: '',
             config_proxy: '',
             config_language: 'en',
+            config_closeAppBehavior: 0,
+            config_tags: [],
+            current_tag: '',
+            current_tag_count: 0,
+            input_tag_value: '',
+            input_tag_visible: false,
             headers: '',
             myKeyIV: '',
             myLocalKeyIV: '',
             taskName: '',
+            taskTag: '',
             taskIsDelTs: true,
             allVideos: [],
-            tabPane: '',
+            tabMain: 'tab1_download',
+            tabPane: 'tab1_singleDownload',
             tsMergeType: 'speed',
             tsMergeProgress: 0,
             tsMergeStatus: '',
@@ -59,9 +70,14 @@ const _app = new Vue({
             browserVideoUrls: [],
             platform: '',
             dlg_buymecoffe_visible: false,
+            pager_pageSize: 20,
+            pager_currPage: 1,
+            pager_totalCount: 0,
+            pager_data: [],
         }
     },
     methods: {
+        timeBeauty: (time) => timeBeauty(time),
         clickNone: () => { console.log(`clickNone`) },
         installEvent: function (e) {
             let that = this;
@@ -90,12 +106,44 @@ const _app = new Vue({
             });
 
             ipcRenderer.on('task-add-reply', function (event, data) {
-                if (data.code != 1) {
+                // console.log('1. task-add-reply', data)
+                const { code, message, object } = data;
+                // object.time = new Date();
+
+                if (code != 1) {
                     that.dlg_newtask_visible = false;
                     that.taskName = '';
                     that.m3u8_url = '';
                     that.m3u8UrlChange();
-                    that.notifyTaskStatus(data.code, data.message);
+                    if (!that.allVideos.some(p => p.id == object.id)) {
+                        // if (code == -1) {
+                        //     object.status = taskStatus.parsingFailed;
+                        //     object.statusText = i18n.t('taskStatus.parsingFailed')
+                        // }
+                        that.allVideos?.unshift(object);
+
+                        setTimeout(() => {
+                            // add animation bounceIn
+                            let li = document.querySelector(`.TaskList > li[data-id="${object.id}"]`);
+                            li?.classList.add("animate__animated", "animate__bounceIn");
+                            li?.addEventListener('animationend', () => {
+                                li?.classList.remove("animate__animated", "animate__bounceIn")
+                            });
+                        }, 200);
+                    }
+
+                    that.notifyTaskStatus(code, message);
+
+                    if (code == -1) {
+                        setTimeout(() => {
+                            let li = document.querySelector(`.TaskList > li[data-id="${object.id}"]`);
+                            li?.classList.add("animate__animated", "animate__bounceOut");
+                            li?.addEventListener('animationend', () => {
+                                const idx = that.allVideos.findIndex(p => p.id == object.id);
+                                idx != -1 && that.allVideos.splice(idx, 1);
+                            });
+                        }, 5000);
+                    }
                     return;
                 }
                 that.playlists = data.playlists;
@@ -104,12 +152,16 @@ const _app = new Vue({
             });
 
             ipcRenderer.on('task-notify-create', function (event, data) {
+                // console.log('2. task-notify-create', data)
+
                 if (!that.allVideos.some(k => k.id == data.id)) {
-                    that.allVideos.splice(0, 0, data);
+                    that.allVideos.splice(0, 0, data); //splice=replace
+                    // that.pagination()
                 }
             });
 
             ipcRenderer.on('task-notify-update', function (event, data) {
+                // console.log('3. task-notify-update', data)
                 for (let idx = 0; idx < that.allVideos.length; idx++) {
                     let e = that.allVideos[idx];
                     if (e.id == data.id) {
@@ -140,18 +192,25 @@ const _app = new Vue({
             });
 
             ipcRenderer.on('delvideo-reply', function (event, data) {
-                for (let idx = 0; idx < that.allVideos.length; idx++) {
-                    let e = that.allVideos[idx];
-                    if (e.id == data.id) {
-                        that.allVideos.splice(idx, 1);
-                        return;
-                    }
-                }
+                // for (let idx = 0; idx < that.allVideos.length; idx++) {
+                //     let e = that.allVideos[idx];
+                //     if (e.id == data.id) {
+                //         that.allVideos.splice(idx, 1);
+                //         return;
+                //     }
+                // }
             });
 
             ipcRenderer.on('check-update-reply', function (event, data) {
                 that.newVersion = data
             })
+
+            ipcRenderer.on(`auto-manualMerge-reply`, function (event, videoName, tsFiles) {
+                that.tabPane = `tab1_mergeTS`;
+                that.tsTaskName = videoName;
+                that.ts_urls = tsFiles;
+                that.ts_dir = i18n.t('mergeTS.tips.select', { total: that.ts_urls.length })
+            });
 
             let browser = document.querySelector('#browser');
             browser?.addEventListener('new-window', (e) => {
@@ -170,8 +229,10 @@ const _app = new Vue({
                 browser?.openDevTools();
             });
         },
-        message: function (_, { version, downloadSpeed,
-            config_ffmpeg, config_save_dir, config_proxy, config_language, videoDatas, browserVideoItem, platform }) {
+        message: function (_, { version, isDev, downloadSpeed,
+            config_ffmpeg, config_save_dir, config_proxy, config_language, config_closeAppBehavior,
+            videoDatas, browserVideoItem, platform, config_tags, config_taskTag, }) {
+            this.isDev = isDev;
             if (version) {
                 this.version = version
                 this.newVersion = version
@@ -180,11 +241,24 @@ const _app = new Vue({
             config_ffmpeg && (this.config_ffmpeg = config_ffmpeg);
             config_save_dir && (this.config_save_dir = config_save_dir);
             config_proxy && (this.config_proxy = config_proxy);
+            config_tags && (this.config_tags = config_tags);
+            if (config_taskTag) {
+                this.taskTag = config_taskTag;
+            } else if (this.config_tags.length > 0) {
+                this.taskTag = this.config_tags[0];
+            }
+
             if (config_language) {
                 this.config_language = config_language;
                 i18n.locale = config_language;
             }
-            videoDatas && (this.allVideos = videoDatas);
+            this.config_closeAppBehavior = config_closeAppBehavior;
+            if (videoDatas) {
+                this.allVideos = videoDatas;
+                // this.pager_data = this.pagination(this.pager_currPage, this.pager_pageSize, this.allVideos)
+                // this.pager_totalCount = videoDatas.length;
+                // this.pager_data = this.pagination(this.pager_currPage, this.pager_pageSize, videoDatas)
+            }
             browserVideoItem && (this.browserVideoUrls.push(browserVideoItem))
             platform && (this.platform = platform);
         },
@@ -216,7 +290,7 @@ const _app = new Vue({
         },
         clickNewTask: function (e) {
             if (!this.config_save_dir) {
-                this.tabPane = "setting";
+                this.tabMain = "tab2_settings";
                 // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频", offset: 100, duration: 1000 });
                 this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir'), offset: 100, duration: 1000 });
                 return;
@@ -253,17 +327,21 @@ const _app = new Vue({
                         m3u8_url = uri;
                     }
                 }
-
+                const id = new Date().getTime();
                 ipcRenderer.send('task-add', {
+                    id: id,
                     url: m3u8_url,
                     headers: this.headers,
                     myKeyIV: this.myKeyIV,
-                    taskName: this.taskName,
+                    taskName: this.taskName || id,
+                    tag: this.taskTag,
                     taskIsDelTs: this.taskIsDelTs,
-                    url_prefix: this.m3u8_url_prefix
+                    url_prefix: this.m3u8_url_prefix,
+                    status: taskStatus.checkM3U8url,
+                    statusText: i18n.t('taskStatus.checkM3U8url')
                 });
 
-                this.addTaskMessage = i18n.t('message.title');// "正在检查链接..."
+                this.addTaskMessage = i18n.t('message.checkM3U8url');// "正在检查链接..."
             }
             else {
                 // this.$message({ title: '提示', type: 'error', message: "请输入正确的M3U8-URL或者导入(.m3u8)文件", offset: 100, duration: 1000 });
@@ -277,7 +355,7 @@ const _app = new Vue({
         },
         clickNewTaskMuti: function (e) {
             if (!this.config_save_dir) {
-                this.tabPane = "setting";
+                this.tabMain = "tab2_settings";
                 // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频", offset: 100, duration: 1000 });
                 this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir'), offset: 100, duration: 1000 });
                 return;
@@ -300,12 +378,28 @@ const _app = new Vue({
         },
         clickDelTaskOK: function (e) {
             // console.log('delvideo', this.dlg_deltask_id, this.dlg_deltask_isDelFile)
-            ipcRenderer.send('delvideo', this.dlg_deltask_id, this.dlg_deltask_isDelFile);
+            const that = this;
+            let li = document.querySelector(`.TaskList > li[data-id="${that.dlg_deltask_id}"]`);
+            li?.classList.add("animate__animated", "animate__bounceOut");
+            li?.addEventListener('animationend', () => {
+                ipcRenderer.send('delvideo', that.dlg_deltask_id, that.dlg_deltask_isDelFile);
 
-            this.dlg_deltask_visible = false;
-            this.dlg_deltask_id = null;
-            this.dlg_deltask_name = null;
-            this.dlg_deltask_isDelFile = true;
+                const idx = that.allVideos?.findIndex(p => p.id == that.dlg_deltask_id);
+                idx != -1 && that.allVideos.splice(idx, 1);
+
+                that.dlg_deltask_id = null;
+
+            });
+
+            // that.dlg_deltask_id = null;
+            that.dlg_deltask_visible = false;
+            that.dlg_deltask_name = null;
+            that.dlg_deltask_isDelFile = true;
+
+            // const idx = this.allVideos?.findIndex(p => p.id == this.dlg_deltask_id);
+            // if (idx != -1) {
+            //     this.allVideos.splice(idx, 1);
+            // }
         },
         clickDelTaskCancel: function (e) {
             this.dlg_deltask_visible = false;
@@ -357,6 +451,11 @@ const _app = new Vue({
                 // console.log(video);
                 return;
             }
+            else if (opt == 'manualMerge') {
+                // that.tabPane = 'tab1_mergeTS';
+                ipcRenderer.send('auto-manualMerge', data)
+                return
+            }
 
             ipcRenderer.send(opt, data);
         },
@@ -400,6 +499,10 @@ const _app = new Vue({
             i18n.locale = this.config_language;
             ipcRenderer.send('set-config', { key: 'language', value: this.config_language });
         },
+        closeAppBehaviorChange: function () {
+            // console.log(this.config_closeAppBehavior)
+            ipcRenderer.send('set-config', { key: 'closeApp', value: this.config_closeAppBehavior });
+        },
         m3u8UrlChange: function () {
             let args = this.m3u8_url.split(/\s/g);
             const i = args.findIndex(p => /http(|s):\/\//i.test(p))
@@ -423,7 +526,15 @@ const _app = new Vue({
             this.addTaskMessage = i18n.t('message.enterM3U8');//"请输入M3U8视频源";
         },
         notifyTaskStatus: function (code, message) {
-            this.$notify({ title: i18n.t('message.title'), type: (code == 0 ? 'success' : 'error'), message: message, showClose: true, duration: 3000, position: 'bottom-right' });
+            this.$notify({
+                // dangerouslyUseHTMLString: true,
+                title: i18n.t('message.title'),
+                type: (code == 0 ? 'success' : 'error'),
+                message: message,
+                showClose: true,
+                duration: 3000,
+                position: 'bottom-right'
+            });
         },
         clickOpenLogDir: function (e) {
             ipcRenderer.send('open-log-dir');
@@ -440,7 +551,7 @@ const _app = new Vue({
             this.tsMergeProgress = 0;
             this.tsMergeStatus = '';
             if (!this.config_save_dir) {
-                this.tabPane = "setting";
+                this.tabMain = "tab2_settings";
                 // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频", offset: 100, duration: 1000 });
                 this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir'), offset: 100, duration: 1000 });
                 return;
@@ -534,7 +645,7 @@ const _app = new Vue({
         clickOpenSponsor: function (e) {
             this.dlg_buymecoffe_visible = true
         },
-        checkUpdate: (oldVersion) => {
+        checkUpdate: function (oldVersion) {
             ipcRenderer.send('check-update')
             return
             let that = this
@@ -580,9 +691,122 @@ const _app = new Vue({
                 // that.newVersion = '2.2.3'
             }
         },
-        clickUpdateApp: () => {
+        clickUpdateApp: function () {
             shell.openExternal(this.newVersion_download_url)
         },
+        handlePageSizeChange: function (val) {
+            console.log(`${val} items per page`)
+        },
+        handleCurrentPageChange: function (pageNo) {
+            this.pager_currPage = pageNo
+            const { list, total } = this.pagination()
+            this.pager_data = list
+            this.pager_totalCount = total
+        },
+        pagination: function () {
+            console.log(`pagination()`)
+            const offset = (this.pager_currPage - 1) * this.pager_pageSize;
+
+            let array = []
+            if (this.current_tag == '')
+                array = this.allVideos
+            else
+                array = this.allVideos.filter(p => p.tag == this.current_tag)
+
+            return {
+                list: (offset + this.pager_pageSize >= array.length) ? array.slice(offset, array.length) : array.slice(offset, offset + this.pager_pageSize),
+                total: array?.length || 0
+            }
+        },
+        handleTagClose: function (tag) {
+            if (this.config_tags.length == 1) return
+
+            if (tag == this.taskTag)
+                this.taskTag = this.config_tags[0]
+
+            this.config_tags.splice(this.config_tags.indexOf(tag), 1)
+            ipcRenderer.send('set-config', { key: 'tags', value: this.config_tags });
+        },
+        showTagInput: function () {
+            const that = this
+            that.input_tag_visible = true
+            that.$nextTick(function () {
+                that.$refs.refInputTag.focus()
+            });
+
+        },
+        handleTagInputConfirm: function () {
+            if (this.input_tag_value) {
+                if (!this.config_tags.includes(this.input_tag_value)) {
+                    this.config_tags.push(this.input_tag_value);
+                    ipcRenderer.send('set-config', { key: 'tags', value: this.config_tags });
+                }
+            }
+            this.input_tag_visible = false
+            this.input_tag_value = ''
+        },
+        handleTagFilte: function (ANode) {
+            this.pager_currPage = 1
+            this.tabMain = 'tab1_download'
+            const tag = ANode.innerText
+            if (tag == this.current_tag) {
+                ANode.classList.remove('active')
+                window.current_tag = '';    // 提升参数级别到顶级window，方便调用
+                this.current_tag = ''
+
+            } else {
+
+                window.current_tag = tag;       // 提升参数级别到顶级window，方便调用
+                this.current_tag = tag
+
+                ANode.parentNode.parentNode.querySelector('.active')?.classList.remove('active')
+                ANode.classList.add('active')
+
+            }
+
+            // debugger
+            const { list, total } = this.pagination()
+            this.pager_data = list
+            this.pager_totalCount = total
+
+            // console.log('this.pager_currPage=', this.pager_currPage)
+        },
+        clickChangeTaskTag: function (tag) {
+            ipcRenderer.send('set-config', { key: 'taskTag', value: tag });
+        },
+        clickOnTest: function (event) {
+            ipcRenderer.send('test')
+        },
+    },
+    watch: {
+        allVideos(newV, oldV) {
+            const { list, total } = this.pagination()
+            this.pager_data = list
+            this.pager_totalCount = total
+        },
+        config_tags: function (newV, oldV) {
+            const div1 = document.querySelector('#mainTab > .is-left > .is-left .el-tabs__nav > div:nth-child(1)');
+            let div2 = document.getElementById('tab_tags_div')
+            if (div2) {
+                if (newV) {
+                    div2.innerHTML = newV?.map(k => `<p><a type="button" class="el-button el-button--info is-text ${window.current_tag == k ? 'active' : ''}" onclick="tag_filte(this)"><span class="">${k}</span></a></p>`).join('');
+                } else {
+                    div2.innerHTML = '';
+                }
+            } else {
+                div2 = document.createElement('div')
+                div2.id = 'tab_tags_div'
+                div2.className = "el-tabs__item is-left"
+                div2.style = "padding-top: 0;"
+                if (newV) {
+                    div2.innerHTML = newV?.map(k => `<p><a type="button" class="el-button el-button--info is-text ${window.current_tag == k ? 'active' : ''}" onclick="tag_filte(this)"><span class="">${k}</span></a></p>`).join('');
+                } else {
+                    div2.innerHTML = '';
+                }
+                const parent = div1.parentNode;
+                parent.insertBefore(div2, div1.nextSibling);
+            }
+        }
     },
     mounted: function () {
         let that = this
@@ -590,5 +814,7 @@ const _app = new Vue({
         setTimeout(() => {
             that.checkUpdate(that.version)
         }, 5000);
+
+        window.tag_filte = that.handleTagFilte;    // 提升函数级别到顶级window，方便调用
     }
 }).$mount('#app');

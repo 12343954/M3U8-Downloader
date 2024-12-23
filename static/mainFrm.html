@@ -7,6 +7,7 @@
     <title></title>
     <link rel="stylesheet" href="lib/element.ui/theme-chalk/index.css">
     <link rel="stylesheet" href="lib/fontawesome-free-6.3.0-web/css/fontawesome.css">
+    <link rel="stylesheet" href="css/animate.css">
     <link rel="stylesheet" href="css/start.css">
     <script src="scripts/global-vars.js"></script>
 </head>
@@ -30,11 +31,12 @@
                     </div>
                 </el-header>
                 <el-main class="main">
-                    <el-tabs tab-position="left" type="border-card" style="height: 100%;">
-                        <el-tab-pane>
+                    <el-tabs id="mainTab" v-model="tabMain" tab-position="left" type="border-card"
+                        style="height: 100%;">
+                        <el-tab-pane name="tab1_download">
                             <span slot="label"><i class="el-icon-download"></i> {{ $t('sidebar.download') }}</span>
                             <el-tabs type="border-card" v-model="tabPane">
-                                <el-tab-pane :label="$t('tabs.singleDownload')">
+                                <el-tab-pane name="tab1_singleDownload" :label="$t('tabs.singleDownload')">
                                     <el-row type="flex" justify="end" style="margin:auto 4%;">
                                         <el-col :span="4">
                                             <el-button class="mybutton" type="primary" icon="el-icon-news"
@@ -53,19 +55,23 @@
                                             <div class="speed el-icon-download">{{downloadSpeed}}</div>
                                         </el-col>
                                     </el-row>
-                                    <ul class="list TaskList" style="overflow:auto">
-                                        <li v-for="o in allVideos" :key="o.id" class="item">
+                                    <ul class="list TaskList" :style="pager_totalCount < 20 ? 'height: calc(100% - 70px)' : ''">
+                                        <li v-for="o in pager_data" :key="o.id" class="item" :data-id="o.id">
                                             <div class="m3u8"></div>
                                             <div class="nametitle">
                                                 <span class="name">
-                                                    <span class="value" :title="o.taskName" @click="clickPlayVideo" :data="o.id">{{o.taskName}}</span>
+                                                    <span class="value" :title="o.taskName" @click="clickPlayVideo"
+                                                        :data="o.id">{{o.taskName}}</span>
+                                                    <el-tag v-if="o.tag" type="success" effect="dark" round
+                                                        style="font-size:9px;border-radius:9999px;padding:4px 10px;display:inline;">
+                                                        {{o.tag}}</el-tag>
                                                 </span>
                                                 <p class="link">
                                                     <span>{{o.url}}</span>
                                                 </p>
                                                 <div class="timestatus">
                                                     <span class="time">
-                                                        <span class="value">{{o.time}}</span>
+                                                        <span class="value">{{timeBeauty(o.time)}}</span>
                                                     </span>
                                                     <span class="status">
                                                         <span class="value">{{o.statusText}}</span>
@@ -74,21 +80,30 @@
                                             </div>
                                             <div class="opt">
                                                 <div class="top">
-                                                    <el-button class="is-text opendir" opt="opendir" :data="o.dir"
-                                                        type="success" icon="el-icon-folder-opened"
-                                                        @click="clickItemOptData"></el-button>
-                                                    <el-button class="play is-text" circle opt="playvideo"
-                                                        :data="o.videopath" type="danger" icon="fa-brands fa-youtube"
-                                                        size="mini" @click="clickItemOptData"
+                                                    <el-button class="is-text opendir" type="success"
+                                                        icon="el-icon-folder-opened" @click="clickItemOptData"
+                                                        opt="openInExplorer" :data="o.videopath||o.dir"></el-button>
+                                                    <el-button class="play is-text" circle type="danger"
+                                                        icon="fa-brands fa-youtube" size="mini"
+                                                        @click="clickItemOptData" opt="playvideo" :data="o.videopath"
                                                         v-if="o.status == taskStatus.done"></el-button>
-                                                    <el-button class="StartStop is-text" opt="StartOrStop" :data="o.id"
-                                                        circle size="mini" @click="clickItemOptData"
+                                                    <el-button class="play is-text" circle type="warning"
+                                                        icon="fa-solid fa-bolt" size="mini" @click="clickItemOptData"
+                                                        opt="manualMerge" :data="o.dir"
+                                                        v-if="o.status == taskStatus.mergeFaild"></el-button>
+                                                    <el-button class="StartStop is-text" circle size="mini"
+                                                        @click="clickItemOptData" opt="StartOrStop" :data="o.id"
                                                         :type="o.status == taskStatus.pause ? 'warning' : 'primary'"
                                                         :icon="o.status == taskStatus.pause ? 'el-icon-download' : 'fas fa-circle-notch fa-spin'"
-                                                        v-if="o.status != taskStatus.done"></el-button>
-                                                    <el-button class="del is-text" circle opt="delvideo" :data="o.id"
-                                                        type="" icon="el-icon-close" @click="clickItemOptData"
+                                                        v-if="![taskStatus.done,taskStatus.mergeFaild,taskStatus.parsingFailed,taskStatus.saveFolderNoExist].includes(o.status)"
+                                                        ></el-button>
+                                                    <el-button class="del is-text" circle type="" icon="el-icon-close"
+                                                        @click="clickItemOptData" opt="delvideo" :data="o.id"
                                                         size="mini"></el-button>
+                                                </div>
+                                                <div class="bottom" v-if="[taskStatus.downloading].includes(o.status)">
+                                                    <el-progress :percentage="o.segment_downloaded*100/o.segment_total" :show-text="false" color="#8e71c7">
+                                                    </el-progress>
                                                 </div>
                                             </div>
                                         </li>
@@ -97,10 +112,17 @@
                                             :title="$t('singleDownload.tips.noTasks')" type="success" effect="light"
                                             :closable="false" :center="true" show-icon></el-alert>
                                     </ul>
+                                    <el-row type="flex" justify="center">
+                                        <el-pagination :current-page="pager_currPage" :page-size="pager_pageSize"
+                                            :small="false" :background="true" dark="true" :hide-on-single-page="true"
+                                            layout="prev, pager, next" :total="pager_totalCount"
+                                            @size-change="handlePageSizeChange"
+                                            @current-change="handleCurrentPageChange" />
+                                    </el-row>
                                     <el-dialog :title="$t('newTask.title')" :visible.sync="dlg_newtask_visible"
                                         width="60%" :modal="true" :close-on-click-modal="false"
                                         :close-on-press-escape="false" :center="false">
-                                        <el-form label-width="100px">
+                                        <el-form label-width="100px" @keyup.enter.native="clickNewTaskOK">
                                             <el-form-item :label="$t('newTask.inputs.url.label')"
                                                 label-position="right">
                                                 <div @drop="dropM3U8File" @dragover.prevent @dragenter.prevent>
@@ -127,6 +149,13 @@
                                                     v-model="taskName">
                                                 </el-input>
                                             </el-form-item>
+                                            <el-form-item :label="$t('newTask.inputs.tags.label')"
+                                                label-position="right">
+                                                <el-radio-group v-model="taskTag" @change="clickChangeTaskTag">
+                                                    <el-radio-button v-for="tag in config_tags" :key="tag"
+                                                        :label="tag" />
+                                                </el-radio-group>
+                                            </el-form-item>
                                             <el-form-item :label="$t('newTask.inputs.urlPrefix.label')"
                                                 label-position="right" v-if="m3u8_url?.startsWith('file:///')">
                                                 <el-tooltip effect="light" placement="top-start">
@@ -140,7 +169,7 @@
                                             </el-form-item>
                                             <el-form-item :label="$t('newTask.inputs.httpHeaders.label')"
                                                 label-position="right">
-                                                <el-input type="textarea" :rows="4"
+                                                <el-input type="textarea" :rows="3"
                                                     :placeholder="$t('newTask.inputs.httpHeaders.holder')"
                                                     v-model="headers"></el-input>
                                             </el-form-item>
@@ -165,7 +194,8 @@
                                         <div slot="footer" class="dialog-footer">
                                             <el-row :gutter="20">
                                                 <el-col :span="11" :offset="4">
-                                                    <el-alert :title="addTaskMessage" type="error" :closable="false">
+                                                    <el-alert :title="addTaskMessage" type="info" :closable="false"
+                                                        effect="dark" style="background-color:#002404;color: #606266;">
                                                     </el-alert>
                                                 </el-col>
                                                 <el-col :span="8" :offset="1">
@@ -203,7 +233,7 @@
                                         </div>
                                     </el-dialog>
                                 </el-tab-pane>
-                                <el-tab-pane :label="$t('tabs.multiDownload')">
+                                <el-tab-pane name="tab1_multiDownload" :label="$t('tabs.multiDownload')">
                                     <el-form label-width="130px" style="margin-right: 65px;">
                                         <el-form-item :label="$t('multiDownload.inputs.m3u8Urls.label')"
                                             label-position="right">
@@ -229,7 +259,7 @@
                                         </el-form-item>
                                     </el-form>
                                 </el-tab-pane>
-                                <el-tab-pane :label="$t('tabs.mergeTS')">
+                                <el-tab-pane name="tab1_mergeTS" :label="$t('tabs.mergeTS')">
                                     <el-row :gutter="8" style="margin-bottom: 5px;">
                                         <el-col :span="3" :offset="1">
                                             <label
@@ -305,7 +335,7 @@
                                             </el-button>
                                         </el-col>
                                         <el-col :span="4" v-if="tsMergeMp4Path">
-                                            <el-button class="mybutton" type="success" @click="clickPlayMergeMp4">
+                                            <el-button class="mybutton" type="danger" @click="clickPlayMergeMp4">
                                                 {{$t('mergeTS.buttons.playVideo')}}
                                             </el-button>
                                         </el-col>
@@ -326,86 +356,110 @@
                                 </el-tab-pane>
                             </el-tabs>
                         </el-tab-pane>
-                        <!-- <el-tab-pane>
-                            <span slot="label"><i class="el-icon-view"></i> 资源嗅探</span>
-                            <el-container>
-                                <el-container>
-                                    <el-header class="navigatorTop">
-                                        <el-input type="text" v-model="navigatorInput" placeholder="请输入 url" clearable
-                                            @change="clickNaviagte"></el-input>
-                                    </el-header>
-                                    <el-main style="padding: 0;">
-                                        <webview id="browser" style="height: 100%;" :src="navigatorUrl"
-                                            :useragent="currentUserAgent"></webview>
-                                    </el-main>
-                                </el-container>
-                                <el-aside class="videoPanel" v-if="browserVideoUrls && browserVideoUrls.length"
-                                    width="300px">
-                                    <ul>
-                                        <li class="videoItem" v-for="item in browserVideoUrls">
-                                            <el-row :gutter="10">
-                                                <el-col :span="6"><el-label>{{item.type}}</el-label></el-col>
-                                                <el-col :span="18"><el-input type="text" readonly
-                                                        :value="item.url"></el-input></el-col>
-                                            </el-row>
-                                            <el-row :gutter="10">
-                                                <el-col :span="6"><el-label>HEADER</el-label></el-col>
-                                                <el-col :span="18"><el-input type="text" readonly
-                                                        :value="item.headers"></el-input></el-col>
-                                            </el-row>
-                                            <el-row v-if="item.key" :gutter="10">
-                                                <el-col :span="6"><el-label>KEY</el-label></el-col>
-                                                <el-col :span="18"><el-input type="text" readonly
-                                                        :value="item.key"></el-input></el-col>
-                                            </el-row>
-                                            <el-row :gutter="10">
-                                                <el-col :offset="8" :span="8"><el-button>浏览</el-button></el-col>
-                                                <el-col :span="8"><el-button>下载</el-button></el-col>
-                                            </el-row>
-                                        </li>
-                                    </ul>
-                                </el-aside>
-                            </el-container>
-                        </el-tab-pane> -->
-                        <el-tab-pane label="软件设置">
+                        <el-tab-pane name="tab2_settings">
                             <span slot="label"><i class="el-icon-s-tools"></i> {{ $t('sidebar.settings') }}</span>
                             <el-row :gutter="8">
-                                <el-col :span="3" :offset="1">
+                                <el-col :span="4" :offset="1">
                                     <span
                                         style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.saveFolder.label')}}</span>
                                 </el-col>
-                                <el-col :span="16">
+                                <el-col :span="15">
                                     <el-input :placeholder="$t('settings.inputs.saveFolder.holder')"
                                         v-model="config_save_dir" :readonly="true">
                                     </el-input>
                                 </el-col>
                                 <el-col :span="3">
-                                    <el-button class="mybutton" type="primary" icon="el-icon-folder-opened"
+                                    <el-button class="mybutton" type="info" icon="el-icon-folder-opened"
                                         @click="clickOpenConfigDir">{{$t('settings.buttons.browser')}}</el-button>
                                 </el-col>
                             </el-row>
                             <br />
                             <el-row :gutter="8">
-                                <el-col :span="3" :offset="1">
+                                <el-col :span="4" :offset="1">
+                                    <span
+                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.tags.label')}}</span>
+                                </el-col>
+                                <el-col :span="18">
+                                    <div>
+                                        <el-tag v-for="tag in config_tags" :key="tag" class="mx-1" closable size="large"
+                                            effect="dark" type="success" :disable-transitions="false"
+                                            @close="handleTagClose(tag)">
+                                            {{ tag }}
+                                        </el-tag>
+                                        <el-button v-if="!input_tag_visible && config_tags?.length < 5" size="small"
+                                            type="info" @click="showTagInput">
+                                            {{$t('settings.inputs.tags.add')}}
+                                        </el-button>
+                                        <el-input v-if="input_tag_visible" ref="refInputTag" class="ml-1 w-20"
+                                            style="width: 8rem;" size="large" v-model="input_tag_value" max-length="50"
+                                            @keyup.enter.native="handleTagInputConfirm" @blur="handleTagInputConfirm" />
+                                    </div>
+                                </el-col>
+                            </el-row>
+                            <br />
+                            <!-- <el-row :gutter="8">
+                                <el-col :span="4" :offset="1">
+                                    <el-tooltip placement="bottom-start">
+                                        <template #content> {{$t('settings.inputs.junks.tips')}} </template>
+                                        <span
+                                            style="line-height:40px;float:right;color:#ccc;">{{$t('settings.inputs.junks.label')}}</span>
+                                    </el-tooltip>
+                                </el-col>
+                                <el-col :span="18">
+                                    <div>
+                                        <el-tag v-for="ts in config_junk_ts" :key="ts" class="mx-1" closable
+                                            size="large" effect="dark" type="danger" :disable-transitions="false"
+                                            @close="handleRemoveJunkTS(ts)" @click="handlePlayJunkTS(ts)">
+                                            {{ ts }}
+                                        </el-tag>
+                                        <el-button v-if="config_junk_ts?.length < 5" size="small" type="info"
+                                            @click="clickOpenJunkTs">
+                                            {{$t('settings.inputs.junks.add')}}
+                                        </el-button>
+                                    </div>
+                                </el-col>
+                            </el-row>
+                            <br /> -->
+                            <el-row :gutter="8">
+                                <el-col :span="4" :offset="1">
+                                    <span
+                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.proxy.label')}}</span>
+                                </el-col>
+                                <el-col :span="9">
+                                    <el-input :placeholder="$t('settings.inputs.proxy.holder')" v-model="config_proxy"
+                                        @change="proxyChange"></el-input>
+                                </el-col>
+                                <!-- <el-col :span="4" :offset="1">
                                     <span
                                         style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.log.label')}}</span>
                                 </el-col>
                                 <el-col :span="4">
                                     <el-button class="mybutton" type="primary" icon="el-icon-view"
                                         @click="clickOpenLogDir">{{$t('settings.buttons.viewLog')}}</el-button>
-                                </el-col>
+                                </el-col> -->
+                            </el-row>
+                            <br />
+                            <el-row :gutter="8">
                                 <el-col :span="4" :offset="1">
+                                    <span
+                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.log.label')}}</span>
+                                </el-col>
+                                <el-col :span="4">
+                                    <el-button class="mybutton" type="info" icon="el-icon-view"
+                                        @click="clickOpenLogDir">{{$t('settings.buttons.viewLog')}}</el-button>
+                                </el-col>
+                                <!-- <el-col :span="4" :offset="1">
                                     <span
                                         style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.proxy.label')}}</span>
                                 </el-col>
-                                <el-col :span="10">
+                                <el-col :span="9">
                                     <el-input :placeholder="$t('settings.inputs.proxy.holder')" v-model="config_proxy"
                                         @change="proxyChange"></el-input>
-                                </el-col>
+                                </el-col> -->
                             </el-row>
                             <br />
                             <el-row>
-                                <el-col :span="3" :offset="1">
+                                <el-col :span="4" :offset="1">
                                     <span
                                         style="line-height: 40px;float: right;color: #ccc;margin-right: 10px;">{{$t('settings.inputs.language.label')}}</span>
                                 </el-col>
@@ -417,58 +471,61 @@
                                     </el-select>
                                 </el-col>
                                 <el-col :span="4" :offset="1">
-                                    <span
-                                        style="line-height: 40px;float: right;color: #909399;">{{$t('about.version')}}</span>
+                                    <!-- <span
+                                        style="line-height: 40px;float: right;color: #909399;">{{$t('about.version')}}</span> -->
                                 </el-col>
-                                <el-col :span="10">
+                                <el-col :span="9">
                                     <span style="line-height:34px;margin-left:1rem;">
-                                        <el-link type="info" target="_blank" :underline="false"
+                                        <!-- <el-link type="info" target="_blank" :underline="false"
                                             :href="newVersion_download_url">v{{version == newVersion ? version :
                                             newVersion}}<sup
                                                 style="color: #ff2929;margin-left:10px;font-size:10px;">{{version ==
-                                                newVersion? '' : $t('about.newVersion')}}</sup></el-link></span>
+                                                newVersion? '' : $t('about.newVersion')}}</sup></el-link></span> -->
                                 </el-col>
                             </el-row>
-                            <!-- <el-divider><i class="el-icon-coffee"></i></el-divider> -->
-                            <el-row :gutter="8" style="position: fixed;bottom: 2rem;width: 82%;right: 1rem;">
-                                <!-- <el-col :span="4" :offset="6" style="margin-right: 2rem;">
-                                    <el-button class="mybutton" type="info" icon="el-icon- fa fa-home"
-                                        style="max-width: 300px;" href="https://github.com/12343954/M3U8-Downloader"
-                                        @click="clickOpenLogDir">{{$t('about.offical')}}</el-button>
-                                </el-col> -->
+                            <br />
+                            <el-row>
+                                <el-col :span="4" :offset="1">
+                                    <span
+                                        style="line-height: 40px;float: right;color: #ccc;margin-right: 10px;">{{$t('settings.buttons.closeBtn')}}</span>
+                                </el-col>
+                                <el-col :span="6">
+                                    <el-select v-model="config_closeAppBehavior" style="width: 100%;"
+                                        @change="closeAppBehaviorChange">
+                                        <el-option v-for="(action, index) in $t('settings.dropdown.closeBtn')"
+                                            :key="action" :label="action" :value="index">
+                                        </el-option>
+                                    </el-select>
+                                </el-col>
+                                <el-col :span="4">
+                                    asdf
+                                </el-col>
+                                <el-col :span="6" v-if="isDev">
+                                    <el-button type="warning" @click="clickOnTest">
+                                        Test function
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                            <el-row :gutter="8" style="position:fixed;bottom:2rem;width:82%;right:1rem;">
+
                                 <el-col :span="4" :offset="6" style="margin-right: 2rem;">
                                     <el-button class="mybutton" type="info" icon="el-icon- fab fa-github"
                                         style="max-width: 300px;"
                                         @click="clickOpenGithub">{{$t('about.github')}}</el-button>
                                 </el-col>
-                                <el-col :span="6">
+                                <el-col :span="6" style="margin-right: 2rem;">
                                     <el-button class="mybutton" type="info" icon="el-icon-coffee-cup"
                                         style="max-width: 400px;"
                                         @click="clickOpenSponsor">{{$t('buyMEcoffe.button')}}</el-button>
                                 </el-col>
+                                <el-col :span="5" style="margin-right: 2rem;text-align:right;">
+                                    <el-link type="info" target="_blank" :underline="false"
+                                        :href="newVersion_download_url">v{{version}}<sup
+                                            style="color: #ff2929;margin-left:10px;font-size:10px;">{{version ==
+                                            newVersion? '' : $t('about.newVersion')}}</sup></el-link>
+                                </el-col>
                             </el-row>
-
-
                         </el-tab-pane>
-                        <!-- <el-tab-pane label="交流反馈">
-                            <span slot="label"><i class="el-icon-chat-dot-square"></i> 交流反馈</span>
-                            <el-row :gutter="8">
-                                <el-col :span="22">
-                                    <el-alert title="警示：【天网恢恢疏而不漏】遵纪守法是每位公民应尽的义务，严禁在此发布违规违法内容，否则后果自负！违规内容举报QQ：1586462"
-                                        type="warning" :center="true" :closable="false" show-icon>
-                                    </el-alert>
-                                </el-col>
-                                <el-col :span="2">
-                                    <el-button class="mybutton" type="success" @click="clickRefreshComment">刷新
-                                    </el-button>
-                                    </el-alert>
-                                </el-col>
-                            </el-row>
-                            <section id="comments" class="vcomment"></section>
-                        </el-tab-pane> -->
-                        <!-- <el-tab-pane label="我的信息">
-                            <span slot="label"><i class="el-icon-s-custom"></i> 我</span>
-                        </el-tab-pane> -->
                     </el-tabs>
                     <el-dialog :title="$t('buyMEcoffe.title')" :visible.sync="dlg_buymecoffe_visible" width="60%"
                         :modal="true" :close-on-click-modal="true" :close-on-press-escape="true" :center="true"

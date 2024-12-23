@@ -212,6 +212,20 @@ body,
     --el-button-active-text-color: var(--el-color-white);
 }
 
+.el-tag--dark.el-tag--success {
+    cursor: pointer;
+    color: #FFF;
+    background-color: var(--el-bg-color);
+    border-color: var(--el-color-success-light-5)
+}
+
+.el-tag--dark.el-tag--danger {
+    cursor: pointer;
+    color: #fff;
+    background-color: var(--el-bg-color);;
+    border-color: var(--el-color-danger-light-5);
+}
+
 .el-button--success.is-plain,
 .el-button--success.is-text,
 .el-button--success.is-link {
@@ -227,7 +241,7 @@ body,
 .el-button--info {
     color: #FFF;
     background-color: var(--el-bg-color);
-    border-color: var(--el-color-info-light-7)
+    border-color: var(--el-color-info-light-5)
 }
 
 .el-button--info:focus,
@@ -413,6 +427,50 @@ body,
     color: #e8e8e8;
 }
 
+.el-pagination {
+    white-space: nowrap;
+    padding: 2px 5px;
+    color: #606266;
+    font-weight: 700;
+}
+
+.el-pagination.is-background .el-pager li:not(.disabled).active {
+    background-color: #7540ff8f;
+    color: #b6b0b0;
+}
+
+.el-pagination.is-background .btn-next.disabled,
+.el-pagination.is-background .btn-next:disabled,
+.el-pagination.is-background .btn-prev.disabled,
+.el-pagination.is-background .btn-prev:disabled,
+.el-pagination.is-background .el-pager li.disabled {
+    color: #606266;
+}
+
+.el-pagination.is-background .btn-next,
+.el-pagination.is-background .btn-prev,
+.el-pagination.is-background .el-pager li {
+    margin: 0 5px;
+    background-color: transparent;
+    color: #C0C4CC;
+    min-width: 30px;
+    border-radius: 2px;
+}
+
+.el-tag {
+    margin: 4px;
+}
+
+.el-radio-button__inner {
+    background: transparent;
+    border: unset;
+
+}
+
+.el-radio-button:first-child .el-radio-button__inner {
+    border-left: unset;
+}
+
 /* .el-input.is-active .el-input__inner, .el-input__inner:focus{
     background: transparent;
     border: 1px solid #025d0e;
@@ -533,12 +591,13 @@ body,
 }
 
 .heisir .main .TaskList {
-    height: calc(100% - 70px);
+    height: calc(100% - 100px);
     margin: 0px auto;
     padding: 10px 0px;
     overflow-y: auto;
     border-radius: 0px;
     margin-top: 10px;
+    margin-bottom: 10px;
     background-color: #161616;
     color: rgb(174, 174, 174);
     margin-left: 4%;
@@ -557,6 +616,10 @@ body,
     text-align: left;
     margin: 0 0 10px 0;
     border-bottom: solid 1px #252525;
+}
+
+.heisir .main .TaskList .item:hover {
+    background: #4b4b4b2b;
 }
 
 .heisir .main .TaskList .item .m3u8 {
@@ -581,6 +644,7 @@ body,
     color: #656565;
     overflow: hidden;
     margin-bottom: 10px;
+    line-break: anywhere;
 }
 
 .heisir .main .TaskList .item .link input {
@@ -624,18 +688,12 @@ body,
     display: flex;
     flex: 0.3;
     min-width: 200px;
-    /* position: absolute; */
-    /* left: 250px; */
-    /* bottom: 5px; */
 }
 
 .heisir .main .TaskList .item .status {
     display: flex;
     flex: 0.3;
     min-width: 200px;
-    /* position: absolute;
-    left: 500px;
-    bottom: 5px; */
     white-space: nowrap;
 }
 
@@ -644,28 +702,40 @@ body,
     flex-direction: column;
     align-items: flex-end;
     align-self: center;
-    /* position: absolute; */
+    position: relative;
     font-size: 15px;
-    /* right: 10px; */
-    /* top: 0px; */
-    /* background-color: #F8F8F8; */
-    /* padding: 2px; */
-    /* padding-right: 20px; */
     height: 100%;
-    /* min-width: 11rem; */
     margin: 0 20px;
+    min-width: 145px;
 }
 
 .heisir .main .TaskList .item .opt .bottom {
-    /* position: absolute;
-    right: 10px;
-    bottom: 5px; */
-    margin-top: 5px;
+    width: 100%;
+    position: absolute;
+    bottom: -1.4rem;
 }
+
+.heisir .main .TaskList .item .opt .bottom .el-progress-bar {
+    width: 98%;
+    /* background: -webkit-linear-gradient(90deg, #e13737,#515ae1,#40a20b); */
+    /* Chrome 10-25, Safari 5.1-6 */                          
+    /* background: linear-gradient(90deg, #e13737,#515ae1,#40a20b); */
+    /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */                                             
+}
+
+.heisir .main .TaskList .item .opt .bottom .el-progress__text{
+    font-size: 12px !important;
+}
+
+.heisir .main .TaskList .item .opt .bottom .el-progress-bar__outer{
+    height: 4px !important;
+    background-color:#606266;
+  }
 
 .heisir .main .TaskList .item .opt .top {
     display: flex;
     flex-direction: row;
+    margin: 0 20px;
 }
 
 .heisir .main .TaskList .item .opt .top button {
@@ -730,9 +800,8 @@ body,
 }
 
 @media screen and (max-width: 1000px) {
-    .heisir .main .paycode{
+    .heisir .main .paycode {}
 
-    }
     .heisir .main .paycode .image {
         width: 128px;
     }
@@ -786,4 +855,17 @@ body,
 
 .heisir .main .videoItem .el-button {
     width: 100%;
+}
+
+#tab_tags_div p {
+    padding: 4px 10px;
+}
+
+#tab_tags_div a {
+    color: #6b6b6b;
+    font-size: 1rem;
+}
+
+#tab_tags_div .active {
+    background-color: #39383857;
 }

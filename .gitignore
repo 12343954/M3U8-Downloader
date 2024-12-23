@@ -4,4 +4,4 @@ yarn-*
 dist/
 .DS_Store
 .yarn/cache
-.yarnrc.yml
+.yarnrc.yml.yarnrc.yml

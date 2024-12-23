@@ -24,6 +24,9 @@ const zhCN = {
                 label: '任务名',
                 holder: `[可空] 默认当前时间戳`,
             },
+            tags: {
+                label: '分类',
+            },
             httpHeaders: {
                 label: '附加头',
                 holder: `[可空] 一行一个Header，例如:
@@ -72,7 +75,7 @@ const zhCN = {
             noTasks: `您还没有添加下载任务，快来试试吧
             新建任务，能自动识别剪切板，省去繁琐操作
             格式：https://m3u8.url+空格+视频名字`
-        }
+        },
     },
     multiDownload: {
         buttons: {
@@ -129,11 +132,17 @@ const zhCN = {
         buttons: {
             browser: '浏览',
             viewLog: '查看日志',
+            closeBtn: '关闭按钮'
         },
         inputs: {
             saveFolder: {
-                label: '视频存储',
+                label: '存储目录',
                 holder: '请单击右侧按钮选择存储文件夹'
+            },
+            tags: {
+                label: '视频分类',
+                default: '全部',
+                add: '+ 新增',
             },
             log: {
                 label: '日志',
@@ -144,8 +153,14 @@ const zhCN = {
             },
             language: {
                 label: '语言',
-                holder: '请输入HTTP代理(如：http://127.0.0.1:7890 )'
+                holder: ''
             }
+        },
+        dropdown: {
+            closeBtn: [
+                '最小化到系统托盘',
+                '直接退出'
+            ]
         }
     },
     message: {
@@ -157,24 +172,26 @@ const zhCN = {
         m3u8UrlError: `请输入正确的M3U8-URL或者导入(.m3u8)文件`,
     },
     taskStatus: {
-        parsingFailed: "解析失败",
+        parsingFailed: "🚦解析失败！开关 HTTP代理 试试",
         parsingM3U8ok: "资源解析成功，有 {count_seg} 个片段，开始下载...",
         parsingLiveOk: "直播资源解析成功，开始下载...",
         multiAddOk: "批量添加成功，开始下载...",
         initializing: "初始化...",
-        failedMultipleTimes: "多次尝试，下载片段失败",
-        noFFMPEG: "已完成，未发现本地FFMPEG，不能合成视频",
+        failedMultipleTimes: "💢多次尝试，下载片段失败",
+        noFFMPEG: "未发现本地FFMPEG，不能合成视频",
         merging: "合并中...[{percent}%]",
         mergeFaild: "合并出错，请尝试手动合并",
-        downloadFaild: "下载失败，请检查链接有效性",
+        downloadFaild: "💔下载失败，请检查链接有效性",
         downloadMerging: "已完成，合并中...",
         downloading: "下载中...{count_downloaded}/{count_seg} [{percent}]",
         startMerge: "开始合并...",
-        mergeFailedMsg: "合并出错：{error}",
+        mergeFailedMsg: "🔴合并出错：{error}",
         pause: "暂停...{count_downloaded}/{count_seg} [{percent}]",
         done: "",//已完成
         downloadLiveStreaming: "下载直播中...[{count_downloaded}]",
-        downloadButFaild: "已完成，下载失败"
+        downloadButFaild: "⛔已完成，下载失败",
+        checkM3U8url: "解析 M3U8 资源中...",
+        saveFolderNoExist: "🚥\"存储目录\" 无效，请重设"
     },
     unit: {
         bitrate: '码率',

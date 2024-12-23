@@ -16,27 +16,30 @@
         "title": {
             "saveFolder": "请选择文件夹",
             "selectM3U8": "请选择一个M3U8文件",
-            "mergeTS": "请选择欲合并的TS文件"
+            "mergeTS": "请选择欲合并的TS文件",
+            "selectVideo": "选择视频文件"
         }
     },
     "task": {
-        "parsingFailed": "解析失败",
+        "parsingFailed": "🚦解析失败！开关 HTTP代理 试试",
         "parsingM3U8ok": "资源解析成功，有 {count_seg} 个片段，开始下载...",
         "parsingLiveOk": "直播资源解析成功，开始下载...",
         "multiAddOk": "批量添加成功，开始下载...",
         "initializing": "初始化...",
-        "failedMultipleTimes": "多次尝试，下载片段失败",
-        "noFFMPEG": "已完成，未发现本地FFMPEG，不能合成视频",
+        "failedMultipleTimes": "💢多次尝试，下载片段失败",
+        "noFFMPEG": "未发现本地FFMPEG，不能合成视频",
         "merging": "合并中...[{percent}%]",
         "mergeFaild": "合并出错，请尝试手动合并",
-        "downloadFaild": "下载失败，请检查链接有效性",
+        "downloadFaild": "💔下载失败，请检查链接有效性",
         "downloadMerging": "已完成，合并中...",
         "downloading": "下载中...{count_downloaded}/{count_seg} [{percent}]",
         "startMerge": "开始合并...",
-        "mergeFailedMsg": "合并出错：{error}",
+        "mergeFailedMsg": "🔴合并出错：{error}",
         "pause": "暂停...{count_downloaded}/{count_seg} [{percent}]",
         "done": "已完成",
         "downloadLiveStreaming": "下载直播中...[{count_downloaded}]",
-        "downloadButFaild": "已完成，下载失败"
+        "downloadButFaild": "⛔已完成，下载失败",
+        "checkM3U8url": "解析 M3U8 资源中...",
+        "saveFolderNoExist": "🚥\"存储目录\" 无效，请重设"
     }
 }

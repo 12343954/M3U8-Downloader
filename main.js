@@ -1,3 +1,4 @@
+//#region // imports
 const os = require('os')
 const {
     app,
@@ -12,7 +13,8 @@ const {
     nativeImage
 } = require('electron');
 const isDev = require('electron-is-dev');
-const { spawn } = require('child_process');
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 const path = require('path');
 const { Parser } = require('m3u8-parser');
 const fs = require('fs');
@@ -32,9 +34,11 @@ const Aria2 = require('aria2');
 const forever = require('forever-monitor');
 const filenamify = require('filenamify');
 const { HttpProxyAgent, HttpsProxyAgent } = require('hpagent');
-const { taskStatus, httpHeader, percentFormat } = require('./static/scripts/global-vars')
+const { taskStatus, httpHeader, percentFormat, dateFormat } = require('./static/scripts/global-vars')
+const { getVideoDuration, getVideoSize } = require('./static/scripts/get-video-duration')
 
 const i18n = require('./locales/i18n')
+//#endregion
 i18n.setLocale('en')
 
 contextMenu({
@@ -45,9 +49,9 @@ contextMenu({
     showSearchWithGoogle: false
 });
 
-const dateFormat = (dt) => {
-    return new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().replace(/T|(\.\d+Z)/g, ' ').trim()
-}
+// const dateFormat = (dt) => {
+//     return new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().replace(/T|(\.\d+Z)/g, ' ').trim()
+// }
 
 const pathConfigDir = app.getPath('userData');
 const pathConfigFile = path.join(pathConfigDir, 'config.json');
@@ -59,6 +63,7 @@ const aria2_config = path.join(aria2Dir, "aria2.conf");
 let isdelts = true;
 let mainWindow = null;
 let playerWindow = null;
+let splashWindow = null;
 let tray = null;
 let AppTitle = 'M3U8 Downloader';
 let firstHide = true;
@@ -129,22 +134,44 @@ try {
 
 
 process.on('uncaughtException', (err, origin) => {
-    logger.error(`uncaughtException: ${err} | ${origin}`)
+    logger.error(`uncaughtException: ${JSON.stringify(err)} | ${JSON.stringify(origin)}`)
 });
 process.on('unhandledRejection', (reason, promise) => {
-    logger.error(`unhandledRejection: ${promise} | ${reason}`)
+    logger.error(`unhandledRejection: ${JSON.stringify(promise)} | ${JSON.stringify(reason)}`)
+    console.log('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 console.log(`\n\n----- ${appInfo.name} | v${appInfo.version} | ${os.platform()} -----\n\n`)
+// logger.info(`pathConfigDir= ${pathConfigDir}`);
+logger.info(`config  loaded, at= ${pathConfigFile}`);
+// logger.info(`pathVideoDB= ${pathVideoDB}`);
 
 function createWindow() {
     // main window
     let _workAreaSize = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workAreaSize;
+
+    splashWindow = new BrowserWindow({
+        width: 500,
+        height: 300,
+        transparent: true,
+        frame: false,
+        alwaysOnTop: true
+    });
+
+    splashWindow.loadFile(path.join(__dirname, 'static', 'splash.html'));
+    splashWindow.center();
+    setTimeout(function () {
+        splashWindow.close();
+        mainWindow.center();
+        mainWindow.show();
+    }, 5000);
+
+
     mainWindow = new BrowserWindow({
-        width: 954,// _workAreaSize.width * 0.6,
-        height: 600,//_workAreaSize.height * 0.7,
-        minWidth: 954,
-        minHeight: 600,
+        width: 1000,// _workAreaSize.width * 0.6,
+        height: 620,//_workAreaSize.height * 0.7,
+        minWidth: 1000,
+        minHeight: 620,
         center: true,
         frame: (process.platform == 'darwin'),
         resizable: true,
@@ -157,7 +184,8 @@ function createWindow() {
         icon: path.join(__dirname, 'static', 'icon', 'logo.png'),
         alwaysOnTop: false,
         hasShadow: false,
-        title: `${AppTitle}`// ${package_self.version}
+        title: `${AppTitle}`,// ${package_self.version}
+        show: false,
     });
     mainWindow.setMenu(null);
     mainWindow.loadFile(path.join(__dirname, 'static', 'mainFrm.html'));
@@ -168,15 +196,33 @@ function createWindow() {
         i18n.setLocale(lang)
         // logger.info(`${lang} = ${i18n.t('message.hello')}`)
 
+        videoDatas.filter(k => {
+            if (k.status == taskStatus.pause) {
+                const _tmp = path.join(pathDownloadDir, `${k.taskName}.mp4`)
+                if (fs.existsSync(_tmp)) {
+                    k.status = taskStatus.done; // "已完成"
+                    k.statusText = i18n.t('task.done')  // "已完成"
+                    k.videopath = _tmp
+                }
+            }
+        })
+
         e.sender.send('message', {
             version: package_self.version,
             config_save_dir: pathDownloadDir,
             config_ffmpeg: ffmpegPath,
             config_proxy: nconf.get('config_proxy'),
+            config_tags: nconf.get('tags') || [],
+            config_taskTag: nconf.get('taskTag') || '',
             config_language: lang,
+            config_closeAppBehavior: nconf.get('closeApp') || 0,
+            platform: process.platform,
             videoDatas,
-            platform: process.platform
+            isDev,
         });
+
+        saveDBdisk()
+
         // logger.info(`===mainWindow.webContents.on('dom-ready')时的videoDatas=${JSON.stringify(videoDatas)}`)
         // e.sender.setTitle(`${AppTitle} ${package_self.version}`)
     })
@@ -190,14 +236,20 @@ function createPlayerWindow(src) {
     let title = src.split(path.sep);
     title = title[title.length - 1];
 
+    let isTop = nconf.get('alwaysOnTop')
+    if (isTop === undefined) isTop = true
+    // logger.info(`isTop = ${isTop}, type= ${typeof(isTop)}`)
+
     if (playerWindow == null) {
         // player window
         // let _workAreaSize = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workAreaSize;
         // logger.info('open player：' + title)
         playerWindow = new BrowserWindow({
             title: title,
-            width: 954,//_workAreaSize.width * 0.6,
-            height: 600,//_workAreaSize.height * 0.7,
+            width: 1000,//_workAreaSize.width * 0.6,
+            height: 700,//_workAreaSize.height * 0.7,
+            minWidth: 480,
+            minHeight: 270,
             skipTaskbar: false,
             transparent: false,
             frame: (process.platform == 'darwin'),
@@ -207,7 +259,7 @@ function createPlayerWindow(src) {
                 contextIsolation: false
             },
             icon: path.join(__dirname, 'static', 'icon', 'logo.png'),
-            alwaysOnTop: false,
+            alwaysOnTop: isTop,
             hasShadow: false,
             parent: mainWindow
         });
@@ -216,15 +268,18 @@ function createPlayerWindow(src) {
         playerWindow.loadFile(path.join(__dirname, 'static', 'player.html'));
         playerWindow.webContents.on('dom-ready', (e) => {
             e.sender.send('message', {
-                platform: process.platform, playsrc: src, title,
+                platform: process.platform, playsrc: src, title, isTop
             });
         });
         isDev && playerWindow.openDevTools();
         return;
     }
     playerWindow.webContents.send('message', {
-        playsrc: src, title
+        platform: process.platform, playsrc: src, title, isTop
     });
+    playerWindow?.show()
+    playerWindow?.setAlwaysOnTop(isTop);
+    playerWindow?.focus();
 }
 
 // 9999.9999.9999 > 1.1.1 最高支持4位版本对比。  1.2.1 > 1.2.0   1.3 > 1.2.9999
@@ -352,14 +407,17 @@ app.on('ready', () => {
     tray.setContextMenu(contextMenu);
     try {
         videoDatas = JSON.parse(fs.readFileSync(pathVideoDB))?.map(k => {
-            // k.status = k.status.replace('下载中', '暂停');
-            k.status = taskStatus.pause;
-            k.statusText = i18n.t('task.pause', { count_downloaded: k.segment_downloaded, count_seg: k.segment_total, percent: percentFormat(k.segment_downloaded, k.segment_total) });
+            if (k.status != taskStatus.mergeFaild && k.status != taskStatus.done) {
+                // k.status = k.status.replace('下载中', '暂停');
+                k.status = taskStatus.pause;
+                k.statusText = i18n.t('task.pause', { count_downloaded: k.segment_downloaded, count_seg: k.segment_total, percent: percentFormat(k.segment_downloaded, k.segment_total) });
+            }
             return k;
         });
         if (videoDatas && videoDatas.length > 0) {
-            videoDatas = videoDatas.map(k => {
-                if (k.segment_total == k.segment_downloaded) {
+            videoDatas = videoDatas.map((k) => {
+                if (k.segment_total == k.segment_downloaded && k.status != taskStatus.done) {
+                    // console.log(k.segment_total, k.segment_downloaded, k.status, taskStatus.done)
                     // k.status = "已完成"
                     k.status = taskStatus.done; // "已完成"
                     k.statusText = i18n.t('task.done')  // "已完成"
@@ -368,12 +426,12 @@ app.on('ready', () => {
                 return k;
             })
         }
-        logger.info(`VideoDB loaded, at=${pathVideoDB}`);
+        logger.info(`VideoDB loaded, at= ${pathVideoDB}`);
         // logger.error(JSON.stringify(pathVideoDB));
 
         // globalTaskStatusDic = videoDatas.reduce((obj, item) => ({ ...obj, [item.id]: (item.status.startsWith('下载中') || item.status.startsWith('暂停')) }), {})
         globalTaskStatusDic = videoDatas.reduce((obj, item) => ({ ...obj, [item.id]: (item.status == taskStatus.downloading || item.status == taskStatus.pause || item.status == taskStatus.downloadLiveStreaming) }), {})
-        // logger.error(`成功设置globalTaskStatusDic断点数据库，at=${JSON.stringify(globalTaskStatusDic)}`);
+        // logger.error(`成功设置断点数据库，globalTaskStatusDic=${JSON.stringify(globalTaskStatusDic)}`);
 
     } catch (error) {
         logger.error(`[FAILED]read pathVideoDB, at=${pathVideoDB}`);
@@ -533,6 +591,14 @@ app.on('window-all-closed', async () => {
     });
     */
 
+    if (nconf.get('closeApp')) {
+        aria2Server && aria2Server.stop();
+        playerWindow && playerWindow.close();
+        mainWindow && mainWindow.close();
+        setTimeout(app.quit.bind(app), 1000);
+        return
+    }
+
     // 在 macOS 上，除非用户用 Cmd + Q 确定地退出，
     // 否则绝大部分应用及其菜单栏会保持激活。
     if (process.platform !== 'darwin') {
@@ -552,8 +618,45 @@ app.on('activate', () => {
     }
 })
 
+
+
+
 ipcMain.on('window-minimize', () => {
     mainWindow.minimize()
+
+    // const f = new ffmpeg()
+    //     .addInputOptions([
+    //         // '-hwaccel',
+    //         '-h'
+    //     ])
+    //     .on('start', cmdline => {
+    //         console.log(`start: ${cmdline} ----------------`)
+    //     })
+    //     .on('end', (out, err) => {
+    //         console.log('end -------------------')
+    //         console.log(out)
+    //     })
+    //     .on('progress', progress => {
+    //         console.log(progress)
+    //     })
+    // f.run()
+
+    // try {
+    //     exec('ffmpeg -hwaccels', [''], (err, stdout, stderr) => {
+    //         if (err) {
+    //             console.log(stderr);
+    //         }
+
+    //         console.log('\nffmpeg -hwaccels:\n---------------------\n');
+    //         console.log(stdout);
+    //         console.log('\n\n');
+
+    //     });
+    // } catch (err) {
+    //     console.log(` error: ${JSON.stringify(err)} \n\n`)
+    // }
+
+
 })
 
 ipcMain.on('window-toggle-maximize', () => {
@@ -565,11 +668,19 @@ ipcMain.on('window-toggle-maximize', () => {
 })
 
 ipcMain.on("hide-windows", function () {
-    mainWindow && mainWindow.hide(), (firstHide && tray && (tray.displayBalloon({
-        icon: path.join(__dirname, 'static', 'icon', 'logo-512.png'),
-        title: i18n.t('message.title'),//"提示",
-        content: i18n.t('message.hideWindow'),//"我隐藏到这里了哦，双击我显示主窗口！"
-    }), firstHide = false));
+    const closeApp = nconf.get('closeApp') || 0;
+    if (closeApp) {
+        aria2Server && aria2Server.stop();
+        playerWindow && playerWindow.close();
+        mainWindow && mainWindow.close();
+        setTimeout(app.quit.bind(app), 1000);
+    } else {
+        mainWindow && mainWindow.hide(), (firstHide && tray && (tray.displayBalloon({
+            icon: path.join(__dirname, 'static', 'icon', 'logo-512.png'),
+            title: i18n.t('message.title'),//"提示",
+            content: i18n.t('message.hideWindow'),//"我隐藏到这里了哦，双击我显示主窗口！"
+        }), firstHide = false));
+    }
 });
 
 ipcMain.on('open-log-dir', function (event, arg) {
@@ -584,21 +695,31 @@ ipcMain.on('task-clear', async function (event, object) {
 
     // videoDatas = videoDatas.filter(k => k.status != '已完成')
     videoDatas = videoDatas.filter(k => k.status != taskStatus.done)
-    fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
+    saveDBdisk()
 });
 
 ipcMain.on('task-add', async function (event, object) {
-    let hlsSrc = object.url;
+    let m3u8_url = object.url;
     let _headers = {};
+    let code = -1;
+    let info = i18n.t('task.parsingFailed') // '解析资源失败！';
+
+    const pathDownloadDir = nconf.get('SaveVideoDir');
+    const folderExist = fs.existsSync(pathDownloadDir);
+
+    let parser = new Parser();
+    //#region // headers
     if (object.headers) {
-        let __ = object.headers.match(/(.*?): ?(.*?)(\n|\r|$)/g);
-        __ && __.forEach((_) => {
-            let ___ = _.match(/(.*?): ?(.*?)(\n|\r|$)/i);
-            ___ && (_headers[___[1]] = ___[2]);
+        let heads = object.headers.split(/\n|\r/g);
+        heads && heads.forEach(head => {
+            var kv = head.split(/:/g)
+            // console.log(kv)
+            if (kv[0] == '') _headers[`:${kv[1]}`] = kv.slice(2).join(':')
+            else _headers[`${kv[0]}`] = kv.slice(1).join(':')
         });
     }
 
-    let mes = hlsSrc.match(/^https?:\/\/[^/]*/);
+    let mes = m3u8_url.match(/^https?:\/\/[^/]*/);
     let _hosts = '';
     if (mes && mes.length >= 1) {
         _hosts = mes[0];
@@ -610,44 +731,54 @@ ipcMain.on('task-add', async function (event, object) {
             _headers['Referer'] = _hosts;
         }
     }
+    //#endregion
 
-    // object.headers = _headers;
     object.headers = { ...httpHeader, ..._headers };
+    object.time = dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss");
+    if (!folderExist) {
+        object.status = taskStatus.saveFolderNoExist;
+        object.statusText = i18n.t('task.saveFolderNoExist');
 
-    let info = i18n.t('task.parsingFailed') // '解析资源失败！';
-    let code = -1;
+        event.sender.send('task-add-reply', {
+            object,
+            code: code,
+            message: i18n.t('task.saveFolderNoExist')
+        });
+        return;
+    }
 
-    let parser = new Parser();
-    if (/^file:\/\/\//g.test(hlsSrc)) {
-        parser.push(fs.readFileSync(hlsSrc.replace(/^file:\/\/\//g, '')));
+    if (/^file:\/\/\//g.test(m3u8_url)) {
+        parser.push(fs.readFileSync(m3u8_url.replace(/^file:\/\/\//g, '')));
         parser.end();
     } else {
         for (let index = 0; index < 3; index++) {
-            let response = await got(hlsSrc, {
+            let response = await got(m3u8_url, {
                 headers: _headers,
                 timeout: httpTimeout,
                 agent: proxy_agent
-            }).catch(logger.error); {
-                if (response && response.body != null &&
-                    response.body != '') {
-                    parser.push(response.body);
-                    parser.end();
+            }).catch(err => {
+                err.message += `\n\ton electron.main('task-add': '${m3u8_url}')`;
+                logger.error(err)
+            });
 
-                    if (parser.manifest.segments.length == 0 && parser.manifest.playlists && parser.manifest.playlists.length && parser.manifest.playlists.length == 1) {
-                        let uri = parser.manifest.playlists[0].uri;
-                        if (!uri.startsWith('http')) {
-                            hlsSrc = uri[0] == '/' ? (hlsSrc.substr(0, hlsSrc.indexOf('/', 10)) + uri) :
-                                (hlsSrc.replace(/\/[^\/]*((\?.*)|$)/, '/') + uri);
-                        }
-                        else {
-                            hlsSrc = uri;
-                        }
-                        object.url = hlsSrc;
-                        parser = new Parser();
-                        continue;
+            if (response && response.body != null && response.body != '') {
+                parser.push(response.body);
+                parser.end();
+
+                if (parser.manifest.segments.length == 0 && parser.manifest.playlists && parser.manifest.playlists.length && parser.manifest.playlists.length == 1) {
+                    let uri = parser.manifest.playlists[0].uri;
+                    if (!uri.startsWith('http')) {
+                        m3u8_url = uri[0] == '/' ? (m3u8_url.substr(0, m3u8_url.indexOf('/', 10)) + uri) :
+                            (m3u8_url.replace(/\/[^\/]*((\?.*)|$)/, '/') + uri);
                     }
-                    break;
+                    else {
+                        m3u8_url = uri;
+                    }
+                    object.url = m3u8_url;
+                    parser = new Parser();
+                    continue;
                 }
+                break;
             }
         }
     }
@@ -669,6 +800,7 @@ ipcMain.on('task-add', async function (event, object) {
     } else if (parser.manifest.playlists && parser.manifest.playlists.length && parser.manifest.playlists.length >= 1) {
         code = 1;
         event.sender.send('task-add-reply', {
+            object,
             code: code,
             message: '',
             playlists: parser.manifest.playlists
@@ -676,6 +808,7 @@ ipcMain.on('task-add', async function (event, object) {
         return;
     }
     event.sender.send('task-add-reply', {
+        object: { ...object, ...{ status: taskStatus.parsingFailed, statusText: info } },
         code: code,
         message: info
     });
@@ -969,6 +1102,7 @@ async function startDownload(object, iidx) {
     let headers = object.headers;
     let url_prefix = object.url_prefix;
     let taskName = object.taskName;
+    const taskTag = object.tag;
     let myKeyIV = object.myKeyIV;
     let url = object.url;
     let taskIsDelTs = object.taskIsDelTs;
@@ -978,6 +1112,7 @@ async function startDownload(object, iidx) {
 
     let dir = path.join(pathDownloadDir, filenamify(taskName, { replacement: '_' }));
 
+    logger.info(`Downloading ${id} ${url}`);
     logger.info(`Download to ${dir}`);
 
     !fs.existsSync(dir) && fs.mkdirSync(dir, { recursive: true });
@@ -1014,7 +1149,7 @@ async function startDownload(object, iidx) {
         }
     }
 
-    //并发 2 个线程下载
+    //启用5个线程下载
     var tsQueues = async.queue(queue_callback, 5);
 
     let count_seg = parser.manifest.segments.length;
@@ -1032,6 +1167,7 @@ async function startDownload(object, iidx) {
         isLiving: false,
         headers: headers,
         taskName: taskName,
+        tag: taskTag,
         myKeyIV: myKeyIV,
         taskIsDelTs: taskIsDelTs,
         success: true,
@@ -1040,7 +1176,7 @@ async function startDownload(object, iidx) {
 
     if (!videoDatas.some(k => k.id == video.id)) {
         videoDatas.splice(0, 0, video);
-        fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
+        saveDBdisk()
     }
 
     if (!object.id) {
@@ -1062,7 +1198,11 @@ async function startDownload(object, iidx) {
             count_downloaded = count_downloaded + 1
             video.segment_downloaded = count_downloaded;
             video.status = taskStatus.downloading;
-            video.statusText = i18n.t('task.downloading', { count_downloaded, count_seg, percent: percentFormat(count_downloaded, count_seg) }) // `下载中...${count_downloaded}/${count_seg} [${percentFormat(count_downloaded, count_seg)}]`
+            video.statusText = i18n.t('task.downloading', {
+                count_downloaded, // `下载中...${count_downloaded}/${count_seg} [${percentFormat(count_downloaded, count_seg)}]`
+                count_seg,
+                percent: percentFormat(count_downloaded, count_seg)
+            });
             if (video.success) {
                 mainWindow.webContents.send('task-notify-update', video);
             }
@@ -1079,7 +1219,7 @@ async function startDownload(object, iidx) {
                 video.statusText = i18n.t('task.failedMultipleTimes')// "多次尝试，下载片段失败";
                 mainWindow.webContents.send('task-notify-end', video);
 
-                fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
+                saveDBdisk()
             }
         }
         tsQueues.push(qo);
@@ -1089,11 +1229,8 @@ async function startDownload(object, iidx) {
             return;
         }
 
-        logger.info('download success');
-        video.status = taskStatus.downloadMerging;
-        video.statusText = i18n.t('task.downloadMerging'); //"已完成，合并中...";
-        video.webContents = i18n.t('task.downloadMerging'); //"已完成，合并中...";
-        mainWindow.webContents.send('task-notify-end', video);
+        logger.info(`Download ok! ${id}`);
+
         let fileSegments = [];
         for (let iSeg = 0; iSeg < segments.length; iSeg++) {
             let filpath = path.join(dir, `${((iSeg + 1) + '').padStart(6, '0')}.ts`);
@@ -1101,6 +1238,7 @@ async function startDownload(object, iidx) {
                 fileSegments.push(filpath);
             }
         }
+
         if (!fileSegments.length) {
             video.status = taskStatus.downloadFaild;
             video.statusText = i18n.t('task.downloadFaild'); //"下载失败，请检查链接有效性";
@@ -1112,12 +1250,15 @@ async function startDownload(object, iidx) {
         let outPathMP4_ = path.join(pathDownloadDir, filenamify(taskName, { replacement: '_' }) + '.mp4');
         if (fs.existsSync(ffmpegPath)) {
             let ffmpegInputStream = new FFmpegStreamReadable(null);
-            new ffmpeg(ffmpegInputStream)
+            let ff = new ffmpeg(ffmpegInputStream)
                 .setFfmpegPath(ffmpegPath)
                 .videoCodec('copy')
                 .audioCodec('copy')
                 .format('mp4')
                 .save(outPathMP4)
+                .on('start', function (commandLine) {
+                    console.log('merge cmd =', commandLine)
+                })
                 .on('error', (error) => {
                     logger.error(error)
                     video.videopath = "";
@@ -1125,25 +1266,48 @@ async function startDownload(object, iidx) {
                     video.statusText = i18n.t('task.mergeFaild') //"合并出错，请尝试手动合并";
                     mainWindow.webContents.send('task-notify-end', video);
 
-                    fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
+                    saveDBdisk()
                 })
-                .on('end', function () {
+                .on('end', async () => {
                     logger.info(`${outPathMP4} merge finished.`)
                     video.videopath = "";
-                    fs.existsSync(outPathMP4) && (fs.renameSync(outPathMP4, outPathMP4_), video.videopath = outPathMP4_);
+                    if (fs.existsSync(outPathMP4)) {
+                        try {
+                            await sleep(200);
+                            fs.renameSync(outPathMP4, outPathMP4_);
+                        } catch (error) {
+                            error.message += `\n\ton After FFMPEG MergeDeleteExistedMP4`
+                            logger.error(error)
+                        }
+                        video.videopath = outPathMP4_;
+                    }
                     video.status = taskStatus.done; //"已完成"
                     video.statusText = i18n.t('task.done') //"已完成"
+
                     video.webContents = i18n.t('task.done')
                     mainWindow.webContents.send('task-notify-end', video);
                     if (video.taskIsDelTs) {
-                        let index_path = path.join(dir, 'index.txt');
-                        fs.existsSync(index_path) && fs.unlinkSync(index_path);
-                        fileSegments.forEach(item => fs.existsSync(item) && fs.unlinkSync(item));
-                        let aesKey_path = path.join(dir, 'aes.key');
-                        fs.existsSync(aesKey_path) && fs.unlinkSync(aesKey_path);
-                        fs.rmdirSync(dir);
+                        try {
+                            // let index_path = path.join(dir, 'index.txt');
+                            // fs.existsSync(index_path) && fs.unlinkSync(index_path);
+                            // fileSegments.forEach(item => fs.existsSync(item) && fs.unlinkSync(item));
+                            // let aesKey_path = path.join(dir, 'aes.key');
+                            // fs.existsSync(aesKey_path) && fs.unlinkSync(aesKey_path);
+
+                            let files = fs.readdirSync(dir);
+                            files?.forEach(f => fs.unlinkSync(path.join(dir, f)))
+
+                            fs.rmdirSync(dir);
+                        } catch (error) {
+                            error.message += `\n\ton After FFMPEG MergeDeleteTS('${outPathMP4_}')`
+                            logger.error(error)
+                        }
+
                     }
-                    fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
+                    saveDBdisk();
+                    await sleep(200);
+                    ff.kill();
+                    ff = null;
                 })
                 .on('progress', (info) => {
                     logger.info(JSON.stringify(info));
@@ -1161,8 +1325,21 @@ async function startDownload(object, iidx) {
                 }
                 // console.log("push " + percent);
             }
+
+            await sleep(200);
+            setTimeout(async () => {
+                video.statusText = await getVideoDuration(video.videopath)
+                video.statusText += `　　　　`;
+                await sleep(100);
+                video.statusText += await getVideoSize(video.videopath);
+
+                mainWindow.webContents.send('task-notify-end', video);
+                // console.log(`video.statusText = ${video.statusText}`)
+                saveDBdisk();
+            }, 1000);
             console.log("push(null) end");
             ffmpegInputStream.push(null);
+
         } else {
             video.videopath = outPathMP4;
             video.status = taskStatus.noFFMPEG;
@@ -1172,10 +1349,26 @@ async function startDownload(object, iidx) {
     });
 }
 
+function isFileOccupied(id, file_path) {
+    try {
+        if (!fs.existsSync(file_path)) {
+            console.log(`${id}: 'File is NOT EXIST'`);
+            return { code: false, msg: 'File is NOT EXIST' };
+        }
+        fs.accessSync(file_path, fs.constants.W_OK);
+        console.log(`${id}: 'File is NOT occupied'`);
+        return { code: false, msg: 'File is NOT occupied' };
+    } catch (error) {
+        console.log(`${id}: 'File is OCCUPIED'`);
+        return { code: true, msg: 'File is OCCUPIED' };
+    }
+}
+
 async function startDownloadLive(object) {
     let id = !object.id ? new Date().getTime() : object.id;
     let headers = object.headers;
     let taskName = object.taskName;
+    const taskTag = object.tag;
     let myKeyIV = object.myKeyIV;
     let url = object.url;
     if (!taskName) {
@@ -1205,13 +1398,14 @@ async function startDownloadLive(object) {
         isLiving: true,
         myKeyIV: myKeyIV,
         taskName: taskName,
+        tag: taskTag,
         headers: headers,
         videopath: ''
     };
 
     if (!videoDatas.some(k => k.id == video.id)) {
         videoDatas.splice(0, 0, video);
-        fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
+        saveDBdisk()
     }
 
     if (!object.id) {
@@ -1322,7 +1516,7 @@ async function startDownloadLive(object) {
                                             video.statusText = i18n.t('task.done');    // "已完成";
                                             mainWindow.webContents.send('task-notify-end', video);
 
-                                            fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
+                                            saveDBdisk()
                                         })
                                         .on('progress', logger.info);
                                 } else {
@@ -1406,7 +1600,7 @@ function formatTime(duration) {
     return hour + ":" + min + ":" + sec;
 }
 
-ipcMain.on('delvideo', function (event, id, delfile = false) {
+ipcMain.on('delvideo', async function (event, id, delfile = false) {
     // logger.debug(`${JSON.stringify(event)}, ${id}, ${delfile}`);
     // return;
 
@@ -1414,41 +1608,57 @@ ipcMain.on('delvideo', function (event, id, delfile = false) {
     delete globalTaskStatusDic[id];
 
     // logger.debug(`delete ===> ${id}, ${delfile}`);
+    const idx = videoDatas?.findIndex(p => p.id == id);
 
-    videoDatas.forEach(Element => {
-        if (Element.id == id) {
+    if (id == -1) return;
+    let task = videoDatas[idx];
+    const videopath = task.videopath;
+    const dir = task.dir;
+
+    try {
+        if (delfile) {
+            let cmd = 'rm -rf '
+            if (os.type() == 'Windows_NT') {
+                cmd = 'del /q '
+            }
             try {
-                if (delfile) {
-                    if (fs.existsSync(Element.videopath)) {
-                        fs.unlinkSync(Element.videopath);
-                    }
+                // fs.unlinkSync(videopath);
+                const { stdout, stderr } = await exec(`${cmd} "${videopath}"`)
 
-                    if (fs.existsSync(Element.dir)) {
-                        // fs.rmdirSync(Element.dir, { recursive: true });
-                        var files = fs.readdirSync(Element.dir)
-                        files.forEach(e => {
-                            fs.unlinkSync(path.join(Element.dir, e));
-                            // shell.moveItemToTrash(path.join(Element.dir, e))
-                        })
-                        // //fs.rmdirSync(Element.dir,{recursive :true})
-                        // shell.moveItemToTrash(Element.dir)
-                        fs.rmSync(Element.dir, { recursive: true, force: true });
-                    }
-                }
-                var nIdx = videoDatas.indexOf(Element);
-                if (nIdx > -1) {
-                    videoDatas.splice(nIdx, 1);
-                    fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
-                }
-                event.sender.send("delvideo-reply", Element);
             } catch (error) {
-                logger.error(error)
+                console.error('delete video', error.message)
+            }
+
+            // if (fs.existsSync(task.dir)) {
+            if (fs.existsSync(dir)) {
+                await sleep(100);
+                // fs.rmdirSync(Element.dir, { recursive: true });
+                var files = fs.readdirSync(dir)
+                files?.forEach(async file => {
+                    await sleep(10);
+                    fs.unlinkSync(path.join(dir, file));
+                    // shell.moveItemToTrash(path.join(Element.dir, e))
+                })
+                // //fs.rmdirSync(Element.dir,{recursive :true})
+                // shell.moveItemToTrash(Element.dir)
+                await sleep(100);
+                fs.rmSync(dir, { recursive: true, force: true });
             }
         }
-    });
+
+        videoDatas.splice(idx, 1);
+        saveDBdisk();
+        event.sender.send("delvideo-reply", task);
+        task = null;
+    } catch (error) {
+        logger.error(error)
+    }
 });
 
 function showDirInExploer(dir) {
+    // logger.debug(`open folder: ${dir}`)
+    fs.existsSync(dir) && shell.openPath(dir)
+    return
     shell.openExternal(dir).catch((reason) => {
         logger.error(`openExternal Error:${dir} ${reason}`);
 
@@ -1482,24 +1692,47 @@ ipcMain.on('opendir', function (event, arg, path2) {
 
 });
 
-ipcMain.on('playvideo', function (event, arg) {
-    fs.existsSync(arg) && createPlayerWindow(arg);
+ipcMain.on('openInExplorer', function (event, file_path) {
+    let explorer;
+    if (!fs.existsSync(file_path))
+        file_path = path.basename(path.dirname(file_path))
+    if (!fs.existsSync(file_path))
+        file_path = pathDownloadDir
+
+    shell.showItemInFolder(file_path)
+})
+
+ipcMain.on('playvideo', function (event, videopath) {
+    fs.existsSync(videopath) && createPlayerWindow(videopath);
+});
+
+ipcMain.on('player-pin-on-top', function (event, isTop) {
+    nconf.set('alwaysOnTop', isTop)
+    nconf.save()
+
+    playerWindow?.setAlwaysOnTop(isTop)
+    isTop && playerWindow?.show()
+
+    mainWindow.webContents.send('set-player-top', isTop)
 });
 
 ipcMain.on('StartOrStop', function (event, arg) {
-    // logger.info(`StartOrStop(${arg})====================`);
+    // logger.info(`StartOrStop, id=${arg}, globalTaskStatusDic[id]=${globalTaskStatusDic[arg]}`);
     // logger.info('videoDatas=' + JSON.stringify(videoDatas))
     let id = Number.parseInt(arg);
     if (globalTaskStatusDic[id] == null) {
         if (videoDatas.some(k => k.id == id))
-            globalTaskStatusDic[id] = false; //下面去转true
+            globalTaskStatusDic[id] = true; //下面去转true
         else {
             logger.info(`globalTaskStatusDic:${JSON.stringify(globalTaskStatusDic)} NOT found id=${arg}`)
             return;
         }
     }
-    globalTaskStatusDic[id] = !globalTaskStatusDic[id];
+    // globalTaskStatusDic[id] = !globalTaskStatusDic[id];
     if (globalTaskStatusDic[id] == true) {
+        globalTaskStatusDic[id] = false
+        logger.info(`restart downloading, id=${arg}, globalTaskStatusDic[id]=${globalTaskStatusDic[arg]}`);
+
         videoDatas.forEach(Element => {
             if (Element.id == id) {
                 if (Element.isLiving == true) {
@@ -1509,6 +1742,9 @@ ipcMain.on('StartOrStop', function (event, arg) {
                 }
             }
         });
+    } else {
+        globalTaskStatusDic[id] = true
+        logger.info(`stop downloading, id=${arg}, globalTaskStatusDic[id]=${globalTaskStatusDic[arg]}`);
     }
 });
 
@@ -1657,6 +1893,8 @@ ipcMain.on('start-merge-ts', async function (event, task) {
     let temp_dir = (new Date().getTime() + '')
     let name = task.name || temp_dir
 
+    const filePath = path.join(pathDownloadDir, task.name + '.mp4')
+
     let dir = path.join(pathDownloadDir, temp_dir);
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, {
@@ -1673,41 +1911,64 @@ ipcMain.on('start-merge-ts', async function (event, task) {
         });
         ffmpegInputStream = new FFmpegStreamReadable(null);
 
-        let ffmpegObj = new ffmpeg(ffmpegInputStream)
+        new ffmpeg(ffmpegInputStream)
             .setFfmpegPath(ffmpegPath)
             .videoCodec(task.mergeType == 'speed' ? 'copy' : 'libx264')
             .audioCodec(task.mergeType == 'speed' ? 'copy' : 'aac')
             .format('mp4')
             .save(outPathMP4)
             .on('error', (error) => {
-                logger.error(error)
+                logger.error(`Merge faild: ${task.ts_folder}\n\terror: ${error}`)
                 mainWindow.webContents.send('start-merge-ts-status', {
                     code: -2,
                     progress: 100,
                     status: i18n.t('task.mergeFailedMsg', { error }) //'合并出错|' + error
                 });
             })
-            .on('end', function () {
-                logger.info(`${outPathMP4} merge finished.`)
+            .on('end', async function () {
                 mainWindow.webContents.send('start-merge-ts-status', {
                     code: 1,
                     progress: 100,
                     status: 'success',
                     dir: dir,
-                    path: outPathMP4
+                    path: filePath,//outPathMP4
                 });
+
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                fs.renameSync(outPathMP4, filePath);
+                fs.rmdirSync(dir);
+
+                videoDatas.filter(async (video) => {
+                    if (video.dir == path.join(pathDownloadDir, task.name)) {
+                        video.videopath = filePath
+                        video.status = taskStatus.done;
+                        try {
+                            video.statusText = await getVideoDuration(filePath);
+                            video.statusText += `　　　　`;
+                            video.statusText += await getVideoSize(filePath);
+                        } catch (error) {
+                            console.log(error)
+                        }
+
+                        mainWindow.webContents.send('task-notify-end', video);
+                        // console.log(`change statusText: ${JSON.stringify(video)}`)
+
+                        saveDBdisk()
+                    }
+                })
+
+                logger.info(`Merge finished:  ${task.ts_folder}\n\tto: ${filePath}`)
             })
             .on('progress', (info) => {
-                logger.info(JSON.stringify(info));
-                mainWindow.webContents.send('start-merge-ts-status', {
-                    code: 0,
-                    progress: -1,
-                    status: JSON.stringify(info)
-                });
+                // logger.info(JSON.stringify(info));
+                // mainWindow.webContents.send('start-merge-ts-status', {
+                //     code: 0,
+                //     progress: -1,
+                //     status: JSON.stringify(info)
+                // });
             });
-        let count = task.ts_files.length
-        let _last = '';
 
+        let count = task.ts_files.length
         let list = task.ts_files.sort((a, b) => parseInt(a.replace(/.ts/ig, '') - parseInt(b.replace(/.ts/ig, ''))))
 
         for (let index = 0; index < count; index++) {
@@ -1742,3 +2003,58 @@ ipcMain.on('check-update', async function (event, arg) {
         event.sender.send("check-update-reply", appInfo.version)
     }
 });
+
+ipcMain.on(`player-open-video`, async () => {
+    if (!playerWindow) return;
+
+    dialog.showOpenDialog(playerWindow, {
+        title: i18n.t('dialog.title.selectVideo'),// "选择视频文件",
+        properties: ['openFile'],
+        filters: [{
+            name: 'Video Files',
+            extensions: ['mp4', 'avi', 'wmv', 'mpeg', 'mpg', 'mov',]
+        }]
+    }).then(result => {
+        if (!result.canceled && result.filePaths.length >= 1) {
+            // logger.debug(JSON.stringify(result))
+            const src = result.filePaths[0];
+            let title = src.split(path.sep);
+            title = title[title.length - 1];
+
+            if (result.filePaths.length == 1) {
+                playerWindow.webContents.send('message', {
+                    platform: process.platform, playsrc: src, title
+                });
+            }
+        }
+    }).catch(err => {
+        logger.error(`[error]player-open-video:select-file:${err}`)
+    });
+});
+
+ipcMain.on(`auto-manualMerge`, function (event, dir) {
+    if (!fs.existsSync(dir)) return
+
+    // logger.info(`auto-manualMerge:dir:${dir}`)
+    event.sender.send("open-select-ts-dir-reply", dir);
+
+    let name = dir.substr(dir.lastIndexOf('\\') + 1)
+
+    fs.readdir(dir, (err, files) => {
+        if (err)
+            logger.error(`auto-manualMerge:read-dir: ${err}`);
+        else {
+            let tsFiles = files.filter((f) => {
+                return f.endsWith('.ts') || f.endsWith('.TS')
+            })
+
+            event.sender.send("auto-manualMerge-reply", name, tsFiles);
+            // logger.info(tsFiles[0])
+        }
+    })
+})
+
+function saveDBdisk() {
+    // console.log('-------------------- save db --------------------')
+    fs.writeFileSync(pathVideoDB, JSON.stringify(videoDatas));
+}

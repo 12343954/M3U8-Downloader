@@ -50,15 +50,23 @@ function getParameterByName(url, name) {
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
 }
 
-ipcRenderer.on('message', (_, { platform, playsrc, title }) => {
+ipcRenderer.on('message', (_, { platform, playsrc, title, isTop }) => {
+    document.querySelector('.header .title').innerText = title;
+
     if (platform && platform == "darwin") {
-        document.querySelector('.header.player').style.display = "none";
+        // document.querySelector('.header.player').style.display = "none";
+        document.querySelector('.header .title').innerText = '';
     } else if (platform && platform == "win32") {
-        document.querySelector('.header .title').innerText = title;
+    }
+
+    if(isTop){
+        document.querySelector('.heisir .header .pin').classList.add('active')
+    }else{
+        document.querySelector('.heisir .header .pin').classList.remove('active')
     }
 
     if (playsrc) {
-        document.title = title;
+        // document.title = '';
         rotation = 0;
         var videoObject = {
             container: '#player', //容器的ID或className
@@ -85,3 +93,16 @@ var btnClose = document.querySelector('.heisir .header .close');
 btnClose.onclick = function () {
     window.close();
 };
+
+var btnOpenVideo = document.querySelector('.heisir .header .open');
+btnOpenVideo.onclick = function () {
+    ipcRenderer.send('player-open-video');
+};
+
+document.querySelector('.heisir .header .pin')
+    .onclick = function (e) {
+        let btn = e.target;
+        btn.classList.toggle("active");
+        // console.log(e.target.classList, btn.classList?.contains('active'))
+        ipcRenderer.send('player-pin-on-top', btn.classList?.contains('active'));
+    };

@@ -22,8 +22,11 @@ const en = {
                 label: 'Task Name',
                 holder: `[optional] Renamed the video name`,
             },
+            tags:{
+                label: 'Classify',
+            },
             httpHeaders: {
-                label: 'Http Headers',
+                label: 'HTTP Headers',
                 holder: `[optional] One line one http header, For example:
                 orgin: http://www.host.com
                 refer: http://www.host.com`
@@ -70,7 +73,7 @@ const en = {
             noTasks: `You haven't added a download yet, let's try it
             'Create new task' can recognizes the clipboard automatically
             format: https://m3u8.url + space + video name`
-        }
+        },
     },
     multiDownload: {
         buttons: {
@@ -127,11 +130,17 @@ const en = {
         buttons: {
             browser: 'Select',
             viewLog: 'View Logs',
+            closeBtn: 'Close App'
         },
         inputs: {
             saveFolder: {
                 label: 'Save Folder',
                 holder: 'Click the right button to select a storage folder'
+            },
+            tags: {
+                label: 'Video Category',
+                default: 'ALL',
+                add: '+ New',
             },
             log: {
                 label: 'Logs',
@@ -142,8 +151,14 @@ const en = {
             },
             language: {
                 label: 'Language',
-                holder: '请输入HTTP代理(如：http://127.0.0.1:7890 )'
+                holder: ''
             }
+        },
+        dropdown: {
+            closeBtn: [
+                'Minimize to system tray',
+                'Exit directly'
+            ]
         }
     },
     message: {
@@ -151,28 +166,30 @@ const en = {
         title: 'Notice',
         enterM3U8: `Please enter M3U8 source url`,
         noSaveDir: `Please set the "Storage Folder" before downloading`,
-        checkM3U8url: `Checking the m3u8 url ...`,
+        checkM3U8url: `Checking m3u8 url...`,
         m3u8UrlError: `Please enter the correct M3U8-URL or import (.m3u8) file`,
     },
     taskStatus: {
-        parsingFailed: "Parsing Failed",
+        parsingFailed: "🚦Parsing failed! turn On/Off \"HTTP Proxy\" to try.",
         parsingM3U8ok: "Resource OK, {count_seg} fragments, downloading...",
         parsingLiveOk: "Live resource parsing successfully, downloading...",
         multiAddOk: "Batch added OK, downloading...",
         initializing: "Initializing",
-        failedMultipleTimes: "Download failed",
+        failedMultipleTimes: "💢Download failed",
         noFFMPEG: "No FFMPEG, no merging.",
         merging: "Merging...[{percent}%]",
         mergeFaild: "Merging failed, try merging manually",
-        downloadFaild: "Download failed, check M3U8 validity",
+        downloadFaild: "💔Download failed, check M3U8 validity",
         downloadMerging: "Downloaded, merging...",
         downloading: "Downloading...{count_downloaded}/{count_seg} [{percent}]",
         startMerge: "Start merging...",
-        mergeFailedMsg: "Merge faild: {error}",
+        mergeFailedMsg: "🔴Merge faild: {error}",
         pause: "Pause...{count_downloaded}/{count_seg} [{percent}]",
         done: "",//Done
         downloadLiveStreaming: "Live Stream...[{count_downloaded}]",
-        downloadButFaild: "Done, but failed"
+        downloadButFaild: "⛔Done, but failed",
+        checkM3U8url: "Checking M3U8 resources...",
+        saveFolderNoExist: "🚥\"Save Folder\" not found, please reset"
     },
     unit: {
         bitrate: 'Bitrate',

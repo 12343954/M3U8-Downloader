@@ -1,8 +1,9 @@
 {
   "name": "m3u8-downloader",
   "productName": "M3U8-Downloader",
-  "version": "2.2.2",
+  "version": "2.2.9",
   "description": "M3U8 Downloader, use for '.m3u8' url downloading.",
+  "homepage": "https://github.com/12343954/M3U8-Downloader",
   "main": "main.js",
   "dependencies": {
     "aria2": "^4.1.2",
@@ -34,8 +35,8 @@
     "start": "electron .",
     "pack-mac": "electron-builder --mac --publish always",
     "pack-win": "electron-builder --win --publish always",
-    "postinstall": "electron-builder install-app-deps",
     "pack-linux": "electron-builder --linux --publish always",
+    "postinstall": "electron-builder install-app-deps",
     "windows-latest": "yarn pack-win",
     "macos-latest": "yarn pack-mac",
     "ubuntu-latest": "yarn pack-linux"
@@ -125,7 +126,7 @@
       "installerHeaderIcon": "static/icon/logo.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "M3U8-Downloader"
+      "shortcutName": "M3U8"
     },
     "appImage": {
       "category": "public.app-category.productivity"
