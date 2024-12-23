@@ -44,6 +44,7 @@ An app developed based on the Electron framework that can download and play HLS 
 <ol>
 <li>Rotate the video screen</li>
 <li>Play other local meida files</li>
+<li>pin-on-top window</li>
 </ol>
 </td>
 </tr>
