@@ -1225,9 +1225,8 @@ async function startDownload(object, iidx) {
         tsQueues.push(qo);
     }
     tsQueues.drain(async () => {
-        if (!video.success) {
-            return;
-        }
+        if (!video.success) return;
+        if (video.segment_downloaded != video.segment_total) return;
 
         logger.info(`Download ok! ${id}`);
 
@@ -1623,8 +1622,11 @@ ipcMain.on('delvideo', async function (event, id, delfile = false) {
             }
             try {
                 // fs.unlinkSync(videopath);
-                const { stdout, stderr } = await exec(`${cmd} "${videopath}"`)
-
+                if (videopath && fs.existsSync(videopath)) {
+                    cmd = `${cmd} "${videopath}"`;
+                    //console.log(cmd)
+                    const { stdout, stderr } = await exec(`${cmd} "${videopath}"`)
+                }
             } catch (error) {
                 console.error('delete video', error.message)
             }

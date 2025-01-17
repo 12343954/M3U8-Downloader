@@ -95,7 +95,7 @@
                                                         @click="clickItemOptData" opt="StartOrStop" :data="o.id"
                                                         :type="o.status == taskStatus.pause ? 'warning' : 'primary'"
                                                         :icon="o.status == taskStatus.pause ? 'el-icon-download' : 'fas fa-circle-notch fa-spin'"
-                                                        v-if="![taskStatus.done,taskStatus.mergeFaild,taskStatus.parsingFailed,taskStatus.saveFolderNoExist].includes(o.status)"
+                                                        v-if="![taskStatus.done,taskStatus.downloadFaild,taskStatus.mergeFaild,taskStatus.parsingFailed,taskStatus.saveFolderNoExist].includes(o.status)"
                                                         ></el-button>
                                                     <el-button class="del is-text" circle type="" icon="el-icon-close"
                                                         @click="clickItemOptData" opt="delvideo" :data="o.id"

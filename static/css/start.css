@@ -712,7 +712,7 @@ body,
 .heisir .main .TaskList .item .opt .bottom {
     width: 100%;
     position: absolute;
-    bottom: -1.4rem;
+    bottom: -1rem;
 }
 
 .heisir .main .TaskList .item .opt .bottom .el-progress-bar {

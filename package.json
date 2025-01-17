@@ -1,7 +1,7 @@
 {
   "name": "m3u8-downloader",
   "productName": "M3U8-Downloader",
-  "version": "2.2.9",
+  "version": "2.2.10",
   "description": "M3U8 Downloader, use for '.m3u8' url downloading.",
   "homepage": "https://github.com/12343954/M3U8-Downloader",
   "main": "main.js",
