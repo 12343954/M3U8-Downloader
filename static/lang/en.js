@@ -22,6 +22,10 @@ const en = {
                 label: 'Task Name',
                 holder: `[optional] Renamed the video name`,
             },
+            quality: {
+                label: '* Quality',
+                holder: 'Select a video quality',
+            },
             tags:{
                 label: 'Classify',
             },
@@ -195,6 +199,7 @@ const en = {
         bitrate: 'Bitrate',
         resolution: 'Resolution',
         link: 'Link',
+        codecs: 'Codecs',
     },
     about: {
         offical: 'Homepage',

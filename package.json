@@ -1,7 +1,7 @@
 {
   "name": "m3u8-downloader",
   "productName": "M3U8-Downloader",
-  "version": "2.2.10",
+  "version": "2.3.1",
   "description": "M3U8 Downloader, use for '.m3u8' url downloading.",
   "homepage": "https://github.com/12343954/M3U8-Downloader",
   "main": "main.js",
@@ -106,7 +106,13 @@
       "appId": "com.coolooai.m3u8-downloader-mac",
       "category": "public.app-category.productivity",
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
       "extraResources": [
         "node_modules/ffmpeg-static/ffmpeg",

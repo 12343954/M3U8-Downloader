@@ -134,20 +134,20 @@
                                                     </el-input>
                                                 </div>
                                             </el-form-item>
-                                            <el-form-item v-if="playlists.length" label="* 画质" label-position="right">
-                                                <el-select v-model="playlistUri" placeholder="选择视频源"
-                                                    style="width: 100%;">
-                                                    <el-option v-for="playlist in playlists" :key="playlist.uri"
-                                                        :label="getPlaylistLabel(playlist)" :value="playlist.uri">
-                                                    </el-option>
-                                                </el-select>
-                                            </el-form-item>
                                             <el-form-item :label="$t('newTask.inputs.taskName.label')"
                                                 label-position="right">
                                                 <el-input type="text"
                                                     :placeholder="$t('newTask.inputs.taskName.holder')"
                                                     v-model="taskName">
                                                 </el-input>
+                                            </el-form-item>
+                                            <el-form-item v-if="playlists.length" :label="$t('newTask.inputs.quality.label')" label-position="right">
+                                                <el-select v-model="playlistUri" :placeholder="$t('newTask.inputs.quality.holder')"
+                                                    style="width: 100%;" @change="qualityChange">
+                                                    <el-option v-for="playlist in playlists" :key="playlist.uri"
+                                                        :label="getPlaylistLabel(playlist)" :value="playlist.uri">
+                                                    </el-option>
+                                                </el-select>
                                             </el-form-item>
                                             <el-form-item :label="$t('newTask.inputs.tags.label')"
                                                 label-position="right">

@@ -76,9 +76,9 @@ let proxy_agent = null;
 let pathDownloadDir;
 
 const httpTimeout = {
-    socket: 30000,
-    request: 30000,
-    response: 60000
+    socket: 10000,
+    request: 10000,
+    response: 30000
 };
 
 const referer = `https://tools.heisir.cn/M3U8Soft-Client?v=${package_self.version}`;
@@ -784,6 +784,7 @@ ipcMain.on('task-add', async function (event, object) {
     }
 
     let count_seg = parser.manifest.segments.length;
+    if(object.audio) count_seg ++;
     if (count_seg > 0) {
         code = 0;
         if (parser.manifest.endList) {
@@ -798,12 +799,19 @@ ipcMain.on('task-add', async function (event, object) {
             startDownloadLive(object);
         }
     } else if (parser.manifest.playlists && parser.manifest.playlists.length && parser.manifest.playlists.length >= 1) {
+        if(parser.manifest.mediaGroups && parser.manifest.mediaGroups.AUDIO && Object.keys(parser.manifest.mediaGroups.AUDIO).length > 0){
+            parser.manifest.playlists = parser.manifest.playlists.map((p, i) => ({
+                ...p, 
+                ...{audio: parser.manifest.mediaGroups.AUDIO[p.attributes.AUDIO].Audio.uri}}))
+        }
+
         code = 1;
         event.sender.send('task-add-reply', {
             object,
             code: code,
             message: '',
-            playlists: parser.manifest.playlists
+            // playlists: parser.manifest.playlists
+            playlists: parser.manifest.playlists.sort((a, b) => b.attributes.BANDWIDTH - a.attributes.BANDWIDTH)
         });
         return;
     }
@@ -1105,6 +1113,7 @@ async function startDownload(object, iidx) {
     const taskTag = object.tag;
     let myKeyIV = object.myKeyIV;
     let url = object.url;
+    let url_audio = object.audio;
     let taskIsDelTs = object.taskIsDelTs;
     if (!taskName) {
         taskName = `${id}`;
@@ -1149,6 +1158,8 @@ async function startDownload(object, iidx) {
         }
     }
 
+    if(url_audio) startDownloadAudio(object, iidx);
+
     //启用5个线程下载
     var tsQueues = async.queue(queue_callback, 5);
 
@@ -1156,8 +1167,9 @@ async function startDownload(object, iidx) {
     let count_downloaded = 0;
     var video = {
         id: id,
-        url: url,
         url_prefix: url_prefix,
+        url: url,
+        audio: url_audio,
         dir: dir,
         segment_total: count_seg,
         segment_downloaded: count_downloaded,
@@ -1174,16 +1186,25 @@ async function startDownload(object, iidx) {
         videopath: ''
     };
 
-    if (!videoDatas.some(k => k.id == video.id)) {
-        videoDatas.splice(0, 0, video);
-        saveDBdisk()
+    globalTaskStatusDic[id] = true;
+    let segments = parser.manifest.segments;
+    if(segments[0].map && segments[0].map.uri){
+        // init.mp4 for HLS
+        segments.unshift({
+            uri: segments[0].map.uri
+        })
+        video.segment_total += 1;
     }
 
     if (!object.id) {
         mainWindow && mainWindow.webContents.send('task-notify-create', video);
     }
-    globalTaskStatusDic[id] = true;
-    let segments = parser.manifest.segments;
+
+    if (!videoDatas.some(k => k.id == video.id)) {
+        videoDatas.splice(0, 0, video);
+        saveDBdisk()
+    }
+
     for (let iSeg = 0; iSeg < segments.length; iSeg++) {
         let qo = new QueueObject();
         qo.dir = dir;
@@ -1228,7 +1249,7 @@ async function startDownload(object, iidx) {
         if (!video.success) return;
         if (video.segment_downloaded != video.segment_total) return;
 
-        logger.info(`Download ok! ${id}`);
+        logger.info(`Download vidoe ok! ${id}`);
 
         let fileSegments = [];
         for (let iSeg = 0; iSeg < segments.length; iSeg++) {
@@ -1271,42 +1292,100 @@ async function startDownload(object, iidx) {
                     logger.info(`${outPathMP4} merge finished.`)
                     video.videopath = "";
                     if (fs.existsSync(outPathMP4)) {
-                        try {
-                            await sleep(200);
-                            fs.renameSync(outPathMP4, outPathMP4_);
-                        } catch (error) {
-                            error.message += `\n\ton After FFMPEG MergeDeleteExistedMP4`
-                            logger.error(error)
+                        if(video.audio){
+                            const files = fs.readdirSync(video.dir);
+                            const m4a = files.find(file => path.extname(file).toLowerCase() === '.m4a');
+                            
+                            if (m4a) {
+                                const newOutPathMP4 = path.join(video.dir, Date.now() + ".mp4");
+
+                                // let stream2 = new FFmpegStreamReadable(null);
+                                // new ffmpeg(stream2)
+                                new ffmpeg()
+                                    // .setFfmpegPath(ffmpegPath)
+                                    .input(outPathMP4)
+                                    .input(path.join(video.dir, m4a))
+                                    .outputOptions([
+                                        '-c:v copy',     // copy video, not transcoding
+                                        '-c:a copy',     // copy audio, not transcoding
+                                        '-map 0:v:0',    // from 1st inputs（videoFile）select video
+                                        '-map 1:a:0',    // from 2nd inputs（audioFile）select audio
+                                    ])
+                                    .format('mp4')
+                                    .save(newOutPathMP4)
+                                    .on('start', function (commandLine) {
+                                        console.log('merge cmd (mp4 + m4a) =', commandLine)
+                                    })
+                                    .on('end', async () => {
+                                        logger.info(`merge video & audio finished.`)
+
+                                        try {
+                                            await sleep(100);
+                                            fs.renameSync(newOutPathMP4, outPathMP4_);
+                                        } catch (error) {
+                                            error.message += `\n\ton After FFMPEG MergeDeleteExistedMP4`
+                                            logger.error(error)
+                                        }
+                                        video.videopath = outPathMP4_;
+
+                                        if (video.taskIsDelTs) {
+                                            try {
+                                                let files = fs.readdirSync(dir);
+                                                files?.forEach(f => fs.unlinkSync(path.join(dir, f)))
+                                                fs.rmdirSync(dir);
+                                            } catch (error) {
+                                                error.message += `\n\ton After FFMPEG MergeDeleteTS('${outPathMP4_}')`
+                                                logger.error(error)
+                                            }
+                                        }
+                                    })
+                                    .on('error', (err) => {
+                                        console.error('merge (mp4 + m4a) error:', err.message);
+                                    })
+                            } 
                         }
-                        video.videopath = outPathMP4_;
+                        else
+                        {
+                            try {
+                                await sleep(200);
+                                fs.renameSync(outPathMP4, outPathMP4_);
+                            } catch (error) {
+                                error.message += `\n\ton After FFMPEG MergeDeleteExistedMP4`
+                                logger.error(error)
+                            }
+                            video.videopath = outPathMP4_;
+
+                            if (video.taskIsDelTs) {
+                                try {
+                                    // let index_path = path.join(dir, 'index.txt');
+                                    // fs.existsSync(index_path) && fs.unlinkSync(index_path);
+                                    // fileSegments.forEach(item => fs.existsSync(item) && fs.unlinkSync(item));
+                                    // let aesKey_path = path.join(dir, 'aes.key');
+                                    // fs.existsSync(aesKey_path) && fs.unlinkSync(aesKey_path);
+        
+                                    let files = fs.readdirSync(dir);
+                                    files?.forEach(f => fs.unlinkSync(path.join(dir, f)))
+        
+                                    fs.rmdirSync(dir);
+                                } catch (error) {
+                                    error.message += `\n\ton After FFMPEG MergeDeleteTS('${outPathMP4_}')`
+                                    logger.error(error)
+                                }
+        
+                            }
+                        }
                     }
+
                     video.status = taskStatus.done; //"已完成"
                     video.statusText = i18n.t('task.done') //"已完成"
 
                     video.webContents = i18n.t('task.done')
                     mainWindow.webContents.send('task-notify-end', video);
-                    if (video.taskIsDelTs) {
-                        try {
-                            // let index_path = path.join(dir, 'index.txt');
-                            // fs.existsSync(index_path) && fs.unlinkSync(index_path);
-                            // fileSegments.forEach(item => fs.existsSync(item) && fs.unlinkSync(item));
-                            // let aesKey_path = path.join(dir, 'aes.key');
-                            // fs.existsSync(aesKey_path) && fs.unlinkSync(aesKey_path);
-
-                            let files = fs.readdirSync(dir);
-                            files?.forEach(f => fs.unlinkSync(path.join(dir, f)))
-
-                            fs.rmdirSync(dir);
-                        } catch (error) {
-                            error.message += `\n\ton After FFMPEG MergeDeleteTS('${outPathMP4_}')`
-                            logger.error(error)
-                        }
-
-                    }
+                    
                     saveDBdisk();
                     await sleep(200);
-                    ff.kill();
-                    ff = null;
+                    // ff.kill();
+                    // ff = null;
                 })
                 .on('progress', (info) => {
                     logger.info(JSON.stringify(info));
@@ -1344,6 +1423,252 @@ async function startDownload(object, iidx) {
             video.status = taskStatus.noFFMPEG;
             video.statusText = i18n.t('task.noFFMPEG') //"已完成，未发现本地FFMPEG，不进行合成。"
             mainWindow.webContents.send('task-notify-end', video);
+        }
+    });
+}
+
+async function startDownloadAudio(object, iidx){
+    let id = object.id;
+    let headers = object.headers;
+    let url_prefix = object.url_prefix;
+    let taskName = object.taskName;
+    const taskTag = object.tag;
+    let myKeyIV = object.myKeyIV;
+    let url = object.audio;
+    let taskIsDelTs = object.taskIsDelTs;
+    if (!taskName) {
+        taskName = `${id}`;
+    }
+
+    let dir = path.join(pathDownloadDir, filenamify(taskName, { replacement: '_' }), 'aud');
+
+    logger.info(`Downloading audio ${id} ${url}`);
+    logger.info(`Download to ${dir}`);
+
+    !fs.existsSync(dir) && fs.mkdirSync(dir, { recursive: true });
+
+    let parser = new Parser();
+
+    //try to download aduio 3 times
+    for (let index = 0; index < 3; index++) {
+        let response = await got(url, {
+            headers: headers,
+            timeout: httpTimeout,
+            agent: proxy_agent
+        }).catch(logger.error); {
+            if (response && response.body != null && response.body != '') {
+                parser.push(response.body);
+                parser.end();
+                if (parser.manifest.segments.length == 0 && parser.manifest.playlists && parser.manifest.playlists.length && parser.manifest.playlists.length >= 1) {
+                    let uri = parser.manifest.playlists[0].uri;
+                    if (!uri.startsWith('http')) {
+                        url = uri[0] == '/' ? (url.substr(0, url.indexOf('/', 10)) + uri) :
+                            (url.replace(/\/[^\/]*((\?.*)|$)/, '/') + uri);
+                    }
+                    else {
+                        url = uri;
+                    }
+                    parser = new Parser();
+                    continue;
+                }
+                break;
+            }
+        }
+    }
+
+    //启用5个线程下载
+    var tsQueues = async.queue(queue_callback, 5);
+
+    let count_seg = parser.manifest.segments.length;
+    let count_downloaded = 0;
+    var audio = {
+        id: id,
+        url_prefix: url_prefix,
+        url: url,
+        audio: url,
+        dir: dir,
+        segment_total: count_seg,
+        segment_downloaded: count_downloaded,
+        time: dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss"),
+        status: taskStatus.initializing,// i18n.t('task.initializing'),// '初始化...',
+        statusText: i18n.t('task.initializing'),// '初始化...',
+        isLiving: false,
+        headers: headers,
+        taskName: taskName,
+        tag: taskTag,
+        myKeyIV: myKeyIV,
+        taskIsDelTs: taskIsDelTs,
+        success: true,
+        videopath: ''
+    };
+
+    // globalTaskStatusDic[id] = true;
+    let segments = parser.manifest.segments;
+    if(segments[0].map && segments[0].map.uri){
+        // init.mp4 for HLS
+        segments.unshift({
+            uri: segments[0].map.uri
+        })
+        audio.segment_total += 1;
+    }
+
+    for (let iSeg = 0; iSeg < segments.length; iSeg++) {
+        let qo = new QueueObject();
+        qo.dir = dir;
+        qo.idx = iSeg;
+        qo.id = id;
+        qo.url = url;
+        qo.url_prefix = url_prefix;
+        qo.headers = headers;
+        qo.myKeyIV = myKeyIV;
+        qo.segment = segments[iSeg];
+        qo.then = function () {
+            count_downloaded = count_downloaded + 1
+            audio.segment_downloaded = count_downloaded;
+            // video.status = taskStatus.downloading;
+            // video.statusText = i18n.t('task.downloading', {
+            //     count_downloaded, // `下载中...${count_downloaded}/${count_seg} [${percentFormat(count_downloaded, count_seg)}]`
+            //     count_seg,
+            //     percent: percentFormat(count_downloaded, count_seg)
+            // });
+            // if (audio.success) {
+            //     mainWindow.webContents.send('task-notify-update', audio);
+            // }
+        };
+        qo.catch = function () {
+            if (this.retry < 5) {
+                tsQueues.push(this);
+            } else {
+                logger.info(`Audio URL:${audio.url} | ${this.segment.uri} download failed`);
+
+                // globalTaskStatusDic[id] = false;
+                // audio.success = false;
+
+                // audio.status = taskStatus.failedMultipleTimes
+                // audio.statusText = i18n.t('task.failedMultipleTimes')// "多次尝试，下载片段失败";
+                // mainWindow.webContents.send('task-notify-end', audio);
+            }
+        }
+        tsQueues.push(qo);
+    }
+    tsQueues.drain(async () => {
+        if (!audio.success) return;
+        if (audio.segment_downloaded != audio.segment_total) return;
+
+        logger.info(`Download audio ok! ${id}`);
+
+        let fileSegments = [];
+        for (let iSeg = 0; iSeg < segments.length; iSeg++) {
+            let filpath = path.join(dir, `${((iSeg + 1) + '').padStart(6, '0')}.ts`);
+            if (fs.existsSync(filpath)) {
+                fileSegments.push(filpath);
+            }
+        }
+
+        if (!fileSegments.length) {
+            // audio.status = taskStatus.downloadFaild;
+            // audio.statusText = i18n.t('task.downloadFaild'); //"下载失败，请检查链接有效性";
+            // mainWindow.webContents.send('task-notify-end', audio);
+            logger.error(`[${url}] 下载失败，请检查链接有效性`);
+            return;
+        }
+        let outPathM4A = path.join(dir, '../', Date.now() + ".m4a");
+        if (fs.existsSync(ffmpegPath)) {
+            let ffmpegInputStream = new FFmpegStreamReadable(null);
+            let ff = new ffmpeg(ffmpegInputStream)
+                .setFfmpegPath(ffmpegPath)
+                .videoCodec('copy')
+                .audioCodec('copy')
+                .format('mp4')
+                .save(outPathM4A)
+                .on('start', function (commandLine) {
+                    console.log('merge m4a cmd =', commandLine)
+                })
+                .on('error', (error) => {
+                    logger.error(error)
+                    // audio.videopath = "";
+                    // audio.status = taskStatus.mergeFaild;
+                    // audio.statusText = i18n.t('task.mergeFaild') //"合并出错，请尝试手动合并";
+                    // mainWindow.webContents.send('task-notify-end', audio);
+
+                    // saveDBdisk()
+                })
+                .on('end', async () => {
+                    logger.info(`audio: ${outPathM4A} merge finished.`)
+                    // if (fs.existsSync(outPathM4A)) {
+                    //     try {
+                    //         await sleep(200);
+                    //         fs.renameSync(outPathM4A, outPathM4A_);
+                    //     } catch (error) {
+                    //         error.message += `\n\ton After FFMPEG MergeDeleteExistedM4A`
+                    //         logger.error(error)
+                    //     }
+                    //     // audio.videopath = outPathM4A_;
+                    // }
+                    // audio.status = taskStatus.done; //"已完成"
+                    // audio.statusText = i18n.t('task.done') //"已完成"
+
+                    // audio.webContents = i18n.t('task.done')
+                    // mainWindow.webContents.send('task-notify-end', audio);
+                    if (audio.taskIsDelTs) {
+                        try {
+                            // let index_path = path.join(dir, 'index.txt');
+                            // fs.existsSync(index_path) && fs.unlinkSync(index_path);
+                            // fileSegments.forEach(item => fs.existsSync(item) && fs.unlinkSync(item));
+                            // let aesKey_path = path.join(dir, 'aes.key');
+                            // fs.existsSync(aesKey_path) && fs.unlinkSync(aesKey_path);
+
+                            let files = fs.readdirSync(dir);
+                            files?.forEach(f => fs.unlinkSync(path.join(dir, f)))
+
+                            fs.rmdirSync(dir);
+                        } catch (error) {
+                            error.message += `\n\ton After FFMPEG MergeDeleteTS('${outPathM4A_}')`
+                            logger.error(error)
+                        }
+
+                    }
+                    // saveDBdisk();
+                    await sleep(200);
+                    ff.kill();
+                    ff = null;
+                })
+                .on('progress', (info) => {
+                    logger.info(JSON.stringify(info));
+                });
+
+            for (let i = 0; i < fileSegments.length; i++) {
+                let percent = Number.parseInt((i + 1) * 100 / fileSegments.length);
+                // audio.status = taskStatus.merging; // `合并中[${percent}%]`;
+                // audio.statusText = i18n.t('task.merging', { percent }) // `合并中[${percent}%]`;
+                // mainWindow.webContents.send('task-notify-end', audio);
+                let filePath = fileSegments[i];
+                fs.existsSync(filePath) && ffmpegInputStream.push(fs.readFileSync(filePath));
+                while (ffmpegInputStream._readableState.length > 0) {
+                    await sleep(100);
+                }
+                // console.log("push " + percent);
+            }
+
+            await sleep(200);
+            // setTimeout(async () => {
+            //     audio.statusText = await getVideoDuration(audio.videopath)
+            //     audio.statusText += `　　　　`;
+            //     await sleep(100);
+            //     audio.statusText += await getVideoSize(audio.videopath);
+
+            //     mainWindow.webContents.send('task-notify-end', audio);
+            //     // console.log(`video.statusText = ${video.statusText}`)
+            //     saveDBdisk();
+            // }, 1000);
+            console.log("audio push(null) end");
+            ffmpegInputStream.push(null);
+
+        } else {
+            // audio.videopath = outPathM4A;
+            // audio.status = taskStatus.noFFMPEG;
+            // audio.statusText = i18n.t('task.noFFMPEG') //"已完成，未发现本地FFMPEG，不进行合成。"
+            // mainWindow.webContents.send('task-notify-end', audio);
         }
     });
 }

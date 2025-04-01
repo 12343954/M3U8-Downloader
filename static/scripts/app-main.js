@@ -24,10 +24,11 @@ const _app = new Vue({
             languages: [{ lang: 'English', value: 'en' }, { lang: '简体中文', value: 'zh-cn' }],
             m3u8_url: '',
             m3u8_urls: '',
+            m3u8_audio_url: '',
+            m3u8_url_prefix: '',
             ts_dir: '',
             ts_folder: '',
             ts_urls: [],
-            m3u8_url_prefix: '',
             dlg_header_visible: false,
             dlg_newtask_visible: false,
             dlg_deltask_visible: false,
@@ -148,6 +149,7 @@ const _app = new Vue({
                 }
                 that.playlists = data.playlists;
                 that.playlistUri = that.playlists[0].uri;
+                if('audio' in that.playlists[0]) that.m3u8_audio_url = that.playlists[0].audio;
                 that.addTaskMessage = i18n.t('newTask.tips.addTaskMessage')// "请选择一种画质";
             });
 
@@ -304,7 +306,7 @@ const _app = new Vue({
                     //https://xxx.com/m3u8/824388.m3u8 filmname
                     if (!clipText) return;
 
-                    if (/http(s):\/\/(.*)\.m3u8/ig.test(clipText)) {
+                    if (/http(|s):\/\/(.*)\.m3u8/ig.test(clipText)) {
                         setTimeout(() => {
                             this.m3u8_url = clipText;
                             this.m3u8UrlChange();
@@ -328,9 +330,16 @@ const _app = new Vue({
                     }
                 }
                 const id = new Date().getTime();
+                if(this.m3u8_audio_url && !this.m3u8_audio_url.startsWith('http')){
+                    const uri = new URL(this.m3u8_url);
+                    const host = `${uri.protocol}//${uri.host}`
+                    this.m3u8_audio_url = host + this.m3u8_audio_url;
+                }
+
                 ipcRenderer.send('task-add', {
                     id: id,
                     url: m3u8_url,
+                    audio: this.m3u8_audio_url,
                     headers: this.headers,
                     myKeyIV: this.myKeyIV,
                     taskName: this.taskName || id,
@@ -473,22 +482,33 @@ const _app = new Vue({
         getPlaylistLabel: function (playlist) {
             if (!playlist || !playlist.attributes) return '';
             const attr = playlist.attributes;
+            let bitrate, resolution, codecs;
+
             if (attr.BANDWIDTH) {
                 // return `码率 - ${attr.BANDWIDTH}`;
-                return `${i18n.t('unit.bitrate')} - ${attr.BANDWIDTH}`;
-            }
-            if (attr.bandwidth) {
+                bitrate = `${i18n.t('unit.bitrate')}: ${attr.BANDWIDTH}`;
+            }else if (attr.bandwidth) {
                 // return `码率 - ${attr.bandwidth}`;
-                return `${i18n.t('unit.bitrate')} - ${attr.bandwidth}`;
+                bitrate = `${i18n.t('unit.bitrate')}: ${attr.bandwidth}`;
             }
+
             if (attr.RESOLUTION) {
                 // return `分辨率 - ${attr.RESOLUTION.width}x${attr.RESOLUTION.height}`;
-                return `${i18n.t('unit.resolution')} - ${attr.RESOLUTION.width}x${attr.RESOLUTION.height}`;
-            }
-            if (attr.resolution) {
+                resolution = `${i18n.t('unit.resolution')}: ${attr.RESOLUTION.width}x${attr.RESOLUTION.height}`;
+            }else if(attr.resolution) {
                 // return `分辨率 - ${attr.resolution.width}x${attr.resolution.height}`;
-                return `${i18n.t('unit.resolution')} - ${attr.resolution.width}x${attr.resolution.height}`;
+                resolution = `${i18n.t('unit.resolution')}: ${attr.resolution.width}x${attr.resolution.height}`;
             }
+
+            if (attr.CODECS) {
+                // return `编码格式 - ${attr.CODECS}`;
+                codecs = `${i18n.t('unit.codecs')}: ${attr.CODECS}`;
+            }else if (attr.codecs) {
+                // return `编码格式 - ${attr.bandwidth}`;
+                codecs = `${i18n.t('unit.codecs')}: ${attr.codecs}`;
+            }
+
+            return `${resolution}; ${bitrate}; ${codecs}`
             // return '链接 - ' + playlist.uri;
             return `${i18n.t('unit.link')} - ${playlist.uri}`;
         },
@@ -502,6 +522,12 @@ const _app = new Vue({
         closeAppBehaviorChange: function () {
             // console.log(this.config_closeAppBehavior)
             ipcRenderer.send('set-config', { key: 'closeApp', value: this.config_closeAppBehavior });
+        },
+        qualityChange: function (val) {
+            const quality = this.playlists.find(p => p.uri == val)
+            if(quality){
+                this.m3u8_audio_url = quality.audio;
+            }
         },
         m3u8UrlChange: function () {
             let args = this.m3u8_url.split(/\s/g);
@@ -523,6 +549,7 @@ const _app = new Vue({
             // }
             this.playlists = [];
             this.playlistUri = '';
+            this.m3u8_audio_url = '';
             this.addTaskMessage = i18n.t('message.enterM3U8');//"请输入M3U8视频源";
         },
         notifyTaskStatus: function (code, message) {

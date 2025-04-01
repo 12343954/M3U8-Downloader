@@ -24,6 +24,10 @@ const zhCN = {
                 label: '任务名',
                 holder: `[可空] 默认当前时间戳`,
             },
+            quality: {
+                label: '* 画质',
+                holder: '选择视频源',
+            },
             tags: {
                 label: '分类',
             },
@@ -197,6 +201,7 @@ const zhCN = {
         bitrate: '码率',
         resolution: '分辨率',
         link: '链接',
+        codecs: '编码',
     },
     about: {
         offical: '官网',
