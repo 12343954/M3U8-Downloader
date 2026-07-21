@@ -31,16 +31,16 @@ jobs:
         run: |
           corepack enable
           corepack prepare yarn@3.5.1 --activate
-          yarn --version
+          corepack yarn --version
 
       - name: Install
-        run: yarn install --immutable
+        run: corepack yarn install --immutable
 
       - name: Smoke test
-        run: yarn smoke
+        run: corepack yarn smoke
 
       - name: Build
-        run: yarn ${{ matrix.os }}
+        run: corepack yarn ${{ matrix.os }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
