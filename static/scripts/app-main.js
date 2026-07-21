@@ -21,7 +21,7 @@ const _app = new Vue({
             version: '',
             newVersion: '',
             newVersion_download_url: 'https://github.com/12343954/M3U8-Downloader/releases',
-            languages: [{ lang: 'English', value: 'en' }, { lang: '简体中文', value: 'zh-cn' }],
+            languages: [{ lang: 'English', value: 'en' }, { lang: 'Chinese', value: 'zh-cn' }],
             m3u8_url: '',
             m3u8_urls: '',
             m3u8_audio_url: '',
@@ -35,12 +35,19 @@ const _app = new Vue({
             dlg_deltask_id: null,
             dlg_deltask_name: '',
             dlg_deltask_isDelFile: true,
+            dlg_category_visible: false,
+            dlg_category_title: '',
+            dlg_category_modify_name: '',
+            dlg_category_modify_from: '',
+            dlg_category_input_type: 'text',
+            dlg_category_action: false,
             config_save_dir: '',
             config_ffmpeg: '',
             config_proxy: '',
             config_language: 'en',
             config_closeAppBehavior: 0,
             config_tags: [],
+            config_categories: [],  //{tag,dir}
             current_tag: '',
             current_tag_count: 0,
             input_tag_value: '',
@@ -75,11 +82,66 @@ const _app = new Vue({
             pager_currPage: 1,
             pager_totalCount: 0,
             pager_data: [],
+            categoryForm: {
+                category: '',
+                saveFolder: '',
+                inputType: 'text',
+                star: false,
+            },
+            categoryRules: {} // Initialize as empty, will be set in created hook
         }
+    },
+    created() {
+        let that = this;
+        // Define rules after the instance is created to ensure methods are available
+        that.categoryRules = {
+            category: [
+                {
+                    validator: (rule, value, callback) => {
+                        if (!value) {
+                            return callback(new Error(
+                                i18n.t('validateMessage.notEmpty', {
+                                    name: i18n.t('settings.dialog.category.inputs.label')
+                                })));
+                        }
+
+                        let categories = that.config_categories;
+                        if (that.dlg_category_action == 'modify') {
+                            categories = that.config_categories.filter(p => p.tag.toLowerCase() != that.dlg_category_modify_name.toLowerCase())
+                        }
+
+                        if (categories.some(p => p.tag.toLowerCase() == value.toLowerCase())) {
+                            return callback(new Error(
+                                i18n.t('validateMessage.nameCannotBe', {
+                                    name: i18n.t('settings.dialog.category.inputs.label'),
+                                    except: categories.map(p => p.tag).join(', ')
+                                })));
+                        }
+                        callback();
+                    },
+                    trigger: 'change'
+                }
+            ],
+            saveFolder: [
+                {
+                    validator: (rule, value, callback) => {
+                        if (!value) {
+                            return callback(new Error(
+                                i18n.t('validateMessage.mustSelect', {
+                                    name: i18n.t('settings.dialog.category.inputs.saveFolder')
+                                })
+                            ));
+                        }
+                        callback();
+                    },
+                    trigger: 'change'
+                }
+            ]
+        };
     },
     methods: {
         timeBeauty: (time) => timeBeauty(time),
-        clickNone: () => { console.log(`clickNone`) },
+        clickNone: () => { },
         installEvent: function (e) {
             let that = this;
 
@@ -149,7 +211,7 @@ const _app = new Vue({
                 }
                 that.playlists = data.playlists;
                 that.playlistUri = that.playlists[0].uri;
-                if('audio' in that.playlists[0]) that.m3u8_audio_url = that.playlists[0].audio;
+                if ('audio' in that.playlists[0]) that.m3u8_audio_url = that.playlists[0].audio;
                 that.addTaskMessage = i18n.t('newTask.tips.addTaskMessage')// "请选择一种画质";
             });
 
@@ -214,6 +276,14 @@ const _app = new Vue({
                 that.ts_dir = i18n.t('mergeTS.tips.select', { total: that.ts_urls.length })
             });
 
+            ipcRenderer.on('open-directory-reply', function (event, index, data) {
+                if (index == -1) {
+                    that.categoryForm.saveFolder = data;
+                } else {
+                    that.config_categories = data;
+                }
+            });
+
             let browser = document.querySelector('#browser');
             browser?.addEventListener('new-window', (e) => {
                 const protocol = (new URL(e.url)).protocol
@@ -233,17 +303,20 @@ const _app = new Vue({
         },
         message: function (_, { version, isDev, downloadSpeed,
             config_ffmpeg, config_save_dir, config_proxy, config_language, config_closeAppBehavior,
-            videoDatas, browserVideoItem, platform, config_tags, config_taskTag, }) {
+            videoDatas, browserVideoItem, platform, config_tags, config_taskTag, config_categories }) {
             this.isDev = isDev;
             if (version) {
                 this.version = version
                 this.newVersion = version
             }
+
             downloadSpeed && (this.downloadSpeed = downloadSpeed);
             config_ffmpeg && (this.config_ffmpeg = config_ffmpeg);
             config_save_dir && (this.config_save_dir = config_save_dir);
             config_proxy && (this.config_proxy = config_proxy);
             config_tags && (this.config_tags = config_tags);
+            config_categories && (this.config_categories = config_categories);
+
             if (config_taskTag) {
                 this.taskTag = config_taskTag;
             } else if (this.config_tags.length > 0) {
@@ -271,7 +344,6 @@ const _app = new Vue({
         },
         clickAClick: function (e) {
             e.preventDefault();
-            console.log(e.target.href);
             shell.openExternal(e.target.href);
         },
         clickStartHookUrl: function (e) {
@@ -291,12 +363,6 @@ const _app = new Vue({
             i18n.locale = this.config_language;
         },
         clickNewTask: function (e) {
-            if (!this.config_save_dir) {
-                this.tabMain = "tab2_settings";
-                // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频", offset: 100, duration: 1000 });
-                this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir'), offset: 100, duration: 1000 });
-                return;
-            }
             this.dlg_newtask_visible = true;
             this.taskName = '';
             this.m3u8_url = '';
@@ -330,10 +396,45 @@ const _app = new Vue({
                     }
                 }
                 const id = new Date().getTime();
-                if(this.m3u8_audio_url && !this.m3u8_audio_url.startsWith('http')){
+                if (this.m3u8_audio_url && !this.m3u8_audio_url.startsWith('http')) {
                     const uri = new URL(this.m3u8_url);
                     const host = `${uri.protocol}//${uri.host}`
                     this.m3u8_audio_url = host + this.m3u8_audio_url;
+                }
+
+                const category = this.config_categories.find(p => p.tag == this.taskTag);
+                if (category.dir == '') {
+                    // this.tabMain = "tab2_settings";
+                    // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频, offset: 100, duration: 1000 });
+                    // this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir', { category: this.taskTag }), offset: 100, duration: 2000 });
+
+                    this.$confirm(i18n.t('message.noSaveDir', { category: this.taskTag }), i18n.t('message.title'), {
+                        customClass: 'custom-confirm custom-message-box',
+                        confirmButtonText: i18n.t('deleteTask.buttons.ok'),
+                        cancelButtonText: i18n.t('deleteTask.buttons.cancel'),
+                        cancelButtonClass: 'info',
+                        type: 'warning'
+                    }).then(() => {
+                        this.dlg_category_action = 'modify';
+                        this.dlg_category_modify_name = category.tag;
+                        this.dlg_category_modify_from = 'newTask';
+                        this.dlg_category_title = i18n.t('settings.dialog.category.title.modify');
+                        this.dlg_category_visible = true;
+                        this.categoryForm = {
+                            category: category.tag,
+                            saveFolder: category.dir,
+                            inputType: 'text',
+                            star: category.star
+                        }
+
+                    }).catch(() => {
+                        // this.$message({
+                        //     type: 'info',
+                        //     message: '已取消删除'
+                        // });
+                    });
+
+                    return;
                 }
 
                 ipcRenderer.send('task-add', {
@@ -344,6 +445,7 @@ const _app = new Vue({
                     myKeyIV: this.myKeyIV,
                     taskName: this.taskName || id,
                     tag: this.taskTag,
+                    dir: category.dir,
                     taskIsDelTs: this.taskIsDelTs,
                     url_prefix: this.m3u8_url_prefix,
                     status: taskStatus.checkM3U8url,
@@ -363,12 +465,13 @@ const _app = new Vue({
             this.allVideos = this.allVideos.filter(k => k.status != taskStatus.done) || [];
         },
         clickNewTaskMuti: function (e) {
-            if (!this.config_save_dir) {
-                this.tabMain = "tab2_settings";
-                // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频", offset: 100, duration: 1000 });
-                this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir'), offset: 100, duration: 1000 });
-                return;
-            }
+            // if (!this.config_save_dir) {
+            //     // this.tabMain = "tab2_settings";
+            //     // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频", offset: 100, duration: 1000 });
+            //     this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir'), offset: 100, duration: 1000 });
+            //     // this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir', { category: this.taskTag }), offset: 100, duration: 1000 });
+            //     return;
+            // }
             if (this.m3u8_urls != '') {
                 ipcRenderer.send('task-add-muti', {
                     m3u8_urls: this.m3u8_urls,
@@ -416,8 +519,8 @@ const _app = new Vue({
             this.dlg_deltask_name = null;
             this.dlg_deltask_isDelFile = true;
         },
-        clickOpenConfigDir: function (e) {
-            ipcRenderer.send("open-config-dir");
+        clickOpenDir: function (e) {
+            ipcRenderer.send("open-directory", -1, null);   //-1 = add new category
         },
         clickItemOptData: function (e) {
             let that = e.target;
@@ -430,10 +533,10 @@ const _app = new Vue({
                 // that.title = that.title == "停止" ? "继续下载" : "停止";
                 this.allVideos.forEach(k => {
                     if (k.id == data) {
-                        // if (k.status.startsWith('下载中'))
-                        //     k.status = k.status.replace('下载中', '暂停')
+                        // if (k.status.startsWith('下载'))
+                        //     k.status = k.status.replace('下载', '暂停')
                         // else
-                        //     k.status = k.status.replace('暂停', '下载中')
+                        //     k.status = k.status.replace('暂停', '下载')
                         if (k.status == taskStatus.downloading || k.status == taskStatus.downloadLiveStreaming || k.status == taskStatus.downloadMerging) {
                             k.status = taskStatus.pause;
                             k.statusText = i18n.t('taskStatus.pause', { count_downloaded: k.segment_downloaded, count_seg: k.segment_total, percent: percentFormat(k.segment_downloaded, k.segment_total) })
@@ -451,7 +554,7 @@ const _app = new Vue({
                     }
                 })
             }
-            else if (opt == 'delvideo') { //&& video.status == '已完成'
+            else if (opt == 'delvideo') { //&& video.status == '已完'
                 let video = this.allVideos.find(p => p.id == data);
                 this.dlg_deltask_visible = true;
                 this.dlg_deltask_id = data;
@@ -466,7 +569,7 @@ const _app = new Vue({
                 return
             }
 
-            ipcRenderer.send(opt, data);
+            ipcRenderer.send(opt == 'StartOrStop' ? 'task-toggle-running' : opt, data);
         },
         clickPlayVideo: function (e) {
             let id = Number(e.target.getAttribute('data'))
@@ -487,7 +590,7 @@ const _app = new Vue({
             if (attr.BANDWIDTH) {
                 // return `码率 - ${attr.BANDWIDTH}`;
                 bitrate = `${i18n.t('unit.bitrate')}: ${attr.BANDWIDTH}`;
-            }else if (attr.bandwidth) {
+            } else if (attr.bandwidth) {
                 // return `码率 - ${attr.bandwidth}`;
                 bitrate = `${i18n.t('unit.bitrate')}: ${attr.bandwidth}`;
             }
@@ -495,7 +598,7 @@ const _app = new Vue({
             if (attr.RESOLUTION) {
                 // return `分辨率 - ${attr.RESOLUTION.width}x${attr.RESOLUTION.height}`;
                 resolution = `${i18n.t('unit.resolution')}: ${attr.RESOLUTION.width}x${attr.RESOLUTION.height}`;
-            }else if(attr.resolution) {
+            } else if (attr.resolution) {
                 // return `分辨率 - ${attr.resolution.width}x${attr.resolution.height}`;
                 resolution = `${i18n.t('unit.resolution')}: ${attr.resolution.width}x${attr.resolution.height}`;
             }
@@ -503,7 +606,7 @@ const _app = new Vue({
             if (attr.CODECS) {
                 // return `编码格式 - ${attr.CODECS}`;
                 codecs = `${i18n.t('unit.codecs')}: ${attr.CODECS}`;
-            }else if (attr.codecs) {
+            } else if (attr.codecs) {
                 // return `编码格式 - ${attr.bandwidth}`;
                 codecs = `${i18n.t('unit.codecs')}: ${attr.codecs}`;
             }
@@ -525,7 +628,7 @@ const _app = new Vue({
         },
         qualityChange: function (val) {
             const quality = this.playlists.find(p => p.uri == val)
-            if(quality){
+            if (quality) {
                 this.m3u8_audio_url = quality.audio;
             }
         },
@@ -550,7 +653,7 @@ const _app = new Vue({
             this.playlists = [];
             this.playlistUri = '';
             this.m3u8_audio_url = '';
-            this.addTaskMessage = i18n.t('message.enterM3U8');//"请输入M3U8视频源";
+            this.addTaskMessage = i18n.t('message.enterM3U8');//"请输入M3U8视频 url 地址;
         },
         notifyTaskStatus: function (code, message) {
             this.$notify({
@@ -577,12 +680,12 @@ const _app = new Vue({
             this.tsMergeMp4Path = '';
             this.tsMergeProgress = 0;
             this.tsMergeStatus = '';
-            if (!this.config_save_dir) {
-                this.tabMain = "tab2_settings";
-                // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频", offset: 100, duration: 1000 });
-                this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir'), offset: 100, duration: 1000 });
-                return;
-            }
+            // if (!this.config_save_dir) {
+            //     this.tabMain = "tab2_settings";
+            //     // this.$message({ title: '提示', type: 'error', message: "请先设置存储路径，再开始下载视频", offset: 100, duration: 1000 });
+            //     this.$message({ title: i18n.t('message.title'), type: 'error', message: i18n.t('message.noSaveDir'), offset: 100, duration: 1000 });
+            //     return;
+            // }
 
             // console.log('start merge', this.ts_folder, this.ts_urls.length, this.tsMergeType, this.tsTaskName)
             ipcRenderer.send('start-merge-ts', {
@@ -647,7 +750,6 @@ const _app = new Vue({
             var guest_info = 'nick'.split(',').filter(function (item) {
                 return GUEST_INFO.indexOf(item) > -1
             });
-            console.log(guest_info)
             var notify = 'false' == true;
             var verify = 'false' == true;
             new Valine({
@@ -656,7 +758,7 @@ const _app = new Vue({
                 verify: verify,
                 appId: "dYhmAWg45dtYACWfTUVR2msp-gzGzoHsz",
                 appKey: "SbuBYWY21MPOSVUCTHdVlXnx",
-                placeholder: "可以在这里进行咨询交流",
+                placeholder: "Leave a comment",
                 pageSize: '100',
                 avatar: 'mm',
                 lang: 'zh-cn',
@@ -678,14 +780,13 @@ const _app = new Vue({
             let that = this
             function str2float(v) {
                 // version convert
-                // 9999.9999.9999 > 1.1.1 最高支持4位版本对比。  1.2.1 > 1.2.0   1.3 > 1.2.9999
+// 9999.9999.9999 > 1.1.1 最高支持4位版本对比，如：1.2.1 > 1.2.0   1.3 > 1.2.9999
                 v = `${v}`.replace('v', '')
                 let va = v.split('.', 4);
                 if (!va) return -1;
                 let _r = 0;
                 let base = 100000000.0;
                 va.forEach(k => _r += (base * k), base /= 10000);
-                console.log(`v=`, _r)
                 return _r;
             }
             try {
@@ -697,18 +798,15 @@ const _app = new Vue({
                         // console.log(json)
                         if (!json) return
                         if (json.message == "Not Found") {
-                            console.log('update not found, return back')
                             return
                         }
 
-                        console.log('new update found, please update')
 
                         if (str2float(json.tag_name) == str2float(oldVersion)) return
                         this.$set('newVersion', json.tag_name)
                         // that.newVersion = json.tag_name
                         // that.newVersion_download_url = `https://github.com/12343954/M3U8-Downloader/releases`
 
-                        console.log(`newVersion =`, that.newVersion)
 
                     })
                     .catch(error => {
@@ -722,7 +820,6 @@ const _app = new Vue({
             shell.openExternal(this.newVersion_download_url)
         },
         handlePageSizeChange: function (val) {
-            console.log(`${val} items per page`)
         },
         handleCurrentPageChange: function (pageNo) {
             this.pager_currPage = pageNo
@@ -731,14 +828,13 @@ const _app = new Vue({
             this.pager_totalCount = total
         },
         pagination: function () {
-            console.log(`pagination()`)
             const offset = (this.pager_currPage - 1) * this.pager_pageSize;
 
             let array = []
             if (this.current_tag == '')
                 array = this.allVideos
             else
-                array = this.allVideos.filter(p => p.tag == this.current_tag)
+                array = this.allVideos.filter(p => p.tag.toLowerCase() == this.current_tag.toLowerCase())
 
             return {
                 list: (offset + this.pager_pageSize >= array.length) ? array.slice(offset, array.length) : array.slice(offset, offset + this.pager_pageSize),
@@ -778,20 +874,13 @@ const _app = new Vue({
             const tag = ANode.innerText
             if (tag == this.current_tag) {
                 ANode.classList.remove('active')
-                window.current_tag = '';    // 提升参数级别到顶级window，方便调用
-                this.current_tag = ''
-
+                window.current_tag = '';    // 提升参数级别到顶级window，方便调用                this.current_tag = ''
             } else {
-
-                window.current_tag = tag;       // 提升参数级别到顶级window，方便调用
-                this.current_tag = tag
-
+                window.current_tag = tag;       // 提升参数级别到顶级window，方便调用                this.current_tag = tag
                 ANode.parentNode.parentNode.querySelector('.active')?.classList.remove('active')
                 ANode.classList.add('active')
-
             }
 
-            // debugger
             const { list, total } = this.pagination()
             this.pager_data = list
             this.pager_totalCount = total
@@ -800,10 +889,141 @@ const _app = new Vue({
         },
         clickChangeTaskTag: function (tag) {
             ipcRenderer.send('set-config', { key: 'taskTag', value: tag });
+            let categories = JSON.parse(JSON.stringify(this.config_categories))
+            categories.map(p => {
+                if (p.tag == tag) p.select = true;
+                else p.select = false;
+            });
+            this.config_categories = categories;
+            ipcRenderer.send('set-config', { key: 'categories', value: this.config_categories });
         },
         clickOnTest: function (event) {
             ipcRenderer.send('test')
         },
+        clickCategorySelect: function (index) {
+            ipcRenderer.send("open-directory", index, this.config_categories[index]);
+        },
+        clickCategoryOptionBefore: function (index, command) {
+            return { index, command };
+        },
+        clickCategoryOption: function ({ index, command }) {
+            if (command == 'delete') {
+                this.dlg_category_title = i18n.t('settings.dialog.category.title.delete')
+                this.dlg_category_visible = true;
+                this.dlg_category_action = 'delete';
+                this.categoryForm = {
+                    category: this.config_categories[index].tag,
+                    saveFolder: this.config_categories[index].dir,
+                    inputType: 'text',
+                    star: this.config_categories[index].star,
+                }
+            } else {
+                let category = this.config_categories[index];
+                category.star = command ? false : true;
+                this.$set(this.config_categories, index, category);
+                ipcRenderer.send('set-config', { key: 'categories', value: this.config_categories });
+            }
+        },
+        clickCategoryAddNew: function () {
+            this.dlg_category_action = 'add';
+            this.dlg_category_title = i18n.t('settings.dialog.category.title.add')
+            this.dlg_category_visible = true;
+            this.categoryForm = {
+                category: '',
+                saveFolder: '',
+                inputType: 'text',
+                star: false,
+            }
+            setTimeout(() => {
+                this.resetForm('categoryForm');
+            }, 200);
+        },
+        clickCategoryModify: function (category) {
+            this.dlg_category_action = 'modify';
+            this.dlg_category_modify_name = category.tag;
+            this.dlg_category_modify_from = 'settings';
+            this.dlg_category_title = i18n.t('settings.dialog.category.title.modify');
+            this.dlg_category_visible = true;
+            this.categoryForm = {
+                category: category.tag,
+                saveFolder: category.dir,
+                inputType: 'text',
+                star: category.star
+            }
+        },
+        handleChangeFolderStar: function () {
+            this.dlg_category_input_type = this.categoryForm.star ? 'password' : 'text';
+        },
+        submitForm(formName) {
+            switch (formName) {
+                case 'categoryForm':
+                    if (this.dlg_category_action == 'delete') {
+                        const categories = this.config_categories.filter(p => p.tag != this.categoryForm.category);
+                        this.config_categories = categories;
+                        ipcRenderer.send('set-config', { key: 'categories', value: this.config_categories });
+                        this.dlg_category_visible = false;
+                    } else if (this.dlg_category_action == 'add') {
+                        this.$refs[formName].validate((valid) => {
+                            if (valid) {
+                                let category = {
+                                    tag: this.categoryForm.category,
+                                    dir: this.categoryForm.saveFolder,
+                                    star: this.categoryForm.star
+                                };
+                                this.$set(this.config_categories, this.config_categories.length, category); //add new 1
+                                ipcRenderer.send('set-config', { key: 'categories', value: this.config_categories });
+                                this.dlg_category_visible = false;
+                            } else {
+                                // console.log('Error submit!!');
+                                return false;
+                            }
+                        });
+                    } else if (this.dlg_category_action == 'modify') {
+                        this.$refs[formName].validate((valid) => {
+                            if (valid) {
+                                let categories = JSON.parse(JSON.stringify(this.config_categories));
+                                categories.map(p => {
+                                    if (p.tag.toLowerCase() == this.categoryForm.category.toLowerCase()) {
+                                        p.tag = this.categoryForm.category;
+                                        p.dir = this.categoryForm.saveFolder;
+                                        p.star = this.categoryForm.star;
+                                    }
+                                })
+
+                                this.config_categories = categories;
+                                ipcRenderer.send('set-config', { key: 'categories', value: this.config_categories });
+                                this.dlg_category_visible = false;
+                            } else {
+                                return false;
+                            }
+                        });
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+
+        },
+        resetForm(formName) {
+            this.$refs[formName].resetFields();
+            switch (formName) {
+                case 'categoryForm':
+                    if (this.dlg_category_action == 'modify') {
+                        if (this.dlg_newtask_visible) {
+                            this.categoryForm = { ...this.categoryForm, ...{ category: this.taskTag } }
+                        } else if (this.dlg_category_visible) {
+                            this.categoryForm = { ...this.categoryForm, ...{ category: this.dlg_category_modify_name } }
+                        }
+                    } else if (this.dlg_category_action == 'add') {
+                        this.categoryForm = { ...this.categoryForm, ...{ category: '', saveFolder: '', star: false, inputType: 'text' } }
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        }
     },
     watch: {
         allVideos(newV, oldV) {
@@ -811,12 +1031,12 @@ const _app = new Vue({
             this.pager_data = list
             this.pager_totalCount = total
         },
-        config_tags: function (newV, oldV) {
+        config_categories: function (newV, oldV) {
             const div1 = document.querySelector('#mainTab > .is-left > .is-left .el-tabs__nav > div:nth-child(1)');
             let div2 = document.getElementById('tab_tags_div')
             if (div2) {
                 if (newV) {
-                    div2.innerHTML = newV?.map(k => `<p><a type="button" class="el-button el-button--info is-text ${window.current_tag == k ? 'active' : ''}" onclick="tag_filte(this)"><span class="">${k}</span></a></p>`).join('');
+                    div2.innerHTML = newV?.map(k => `<p><a type="button" class="el-button el-button--info is-text ${window.current_tag == k.tag ? 'active' : ''}" onclick="tag_filte(this)"><span class="">${k.tag}</span></a></p>`).join('');
                 } else {
                     div2.innerHTML = '';
                 }
@@ -826,7 +1046,7 @@ const _app = new Vue({
                 div2.className = "el-tabs__item is-left"
                 div2.style = "padding-top: 0;"
                 if (newV) {
-                    div2.innerHTML = newV?.map(k => `<p><a type="button" class="el-button el-button--info is-text ${window.current_tag == k ? 'active' : ''}" onclick="tag_filte(this)"><span class="">${k}</span></a></p>`).join('');
+                    div2.innerHTML = newV?.map(k => `<p><a type="button" class="el-button el-button--info is-text ${window.current_tag == k.tag ? 'active' : ''}" onclick="tag_filte(this)"><span class="">${k.tag}</span></a></p>`).join('');
                 } else {
                     div2.innerHTML = '';
                 }
@@ -842,6 +1062,6 @@ const _app = new Vue({
             that.checkUpdate(that.version)
         }, 5000);
 
-        window.tag_filte = that.handleTagFilte;    // 提升函数级别到顶级window，方便调用
+        window.tag_filte = that.handleTagFilte;
     }
 }).$mount('#app');

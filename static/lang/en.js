@@ -26,8 +26,8 @@ const en = {
                 label: '* Quality',
                 holder: 'Select a video quality',
             },
-            tags:{
-                label: 'Classify',
+            tags: {
+                label: 'Category',
             },
             httpHeaders: {
                 label: 'HTTP Headers',
@@ -46,10 +46,10 @@ const en = {
                 label: 'After merging',
                 holder: `Delete all ts files`,
             },
-            urlPrefix:{
-                label:`Url Prefix`,
+            urlPrefix: {
+                label: `Url Prefix`,
                 holder: `[optional] e.g. http://video.com/m3u8/12345678/`,
-                content:`If M3U8 file is downloaded directly to the local and there is no URL (https) prefix in the file, you need to fill in it.
+                content: `If M3U8 file is downloaded directly to the local and there is no URL (https) prefix in the file, you need to fill in it.
                 If the TS video stream is in the M3U8 file directory, you do not need to fill in this field`
             }
         },
@@ -62,7 +62,8 @@ const en = {
         buttons: {
             ok: 'Yes, do it',
             cancel: 'Cancel',
-            withFile: 'Delete the file'
+            withFile: 'Delete the file',
+            reset: 'Reset'
         }
     },
     singleDownload: {
@@ -163,13 +164,28 @@ const en = {
                 'Minimize to system tray',
                 'Exit directly'
             ]
+        },
+        dialog: {
+            category: {
+                title: {
+                    add: 'New Category',
+                    modify: 'Modify Category',
+                    delete: 'Delete Category'
+                },
+                inputs: {
+                    label: 'Category',
+                    holder: 'No repeated category',
+                    saveFolder: 'Save Folder',
+                    star: 'Hide the Save Folder',
+                }
+            }
         }
     },
     message: {
         hello: '{msg} world',
         title: 'Notice',
         enterM3U8: `Please enter M3U8 source url`,
-        noSaveDir: `Please set the "Storage Folder" before downloading`,
+        noSaveDir: `Must set the "Storage Folder" of "Category: {category}" before downloading`,
         checkM3U8url: `Checking m3u8 url...`,
         m3u8UrlError: `Please enter the correct M3U8-URL or import (.m3u8) file`,
     },
@@ -216,6 +232,11 @@ const en = {
         wechat: 'WeChat',
         alipay: 'AliPay',
         paypal: 'PayPal',
+    },
+    validateMessage: {
+        notEmpty: '{name} can not be empty!',
+        nameCannotBe: '{name} cannot be {except}',
+        mustSelect: 'Please select a(n) {name}!'
     }
 }
 

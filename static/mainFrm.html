@@ -55,7 +55,8 @@
                                             <div class="speed el-icon-download">{{downloadSpeed}}</div>
                                         </el-col>
                                     </el-row>
-                                    <ul class="list TaskList" :style="pager_totalCount < 20 ? 'height: calc(100% - 70px)' : ''">
+                                    <ul class="list TaskList"
+                                        :style="pager_totalCount < 20 ? 'height: calc(100% - 70px)' : ''">
                                         <li v-for="o in pager_data" :key="o.id" class="item" :data-id="o.id">
                                             <div class="m3u8"></div>
                                             <div class="nametitle">
@@ -95,14 +96,14 @@
                                                         @click="clickItemOptData" opt="StartOrStop" :data="o.id"
                                                         :type="o.status == taskStatus.pause ? 'warning' : 'primary'"
                                                         :icon="o.status == taskStatus.pause ? 'el-icon-download' : 'fas fa-circle-notch fa-spin'"
-                                                        v-if="![taskStatus.done,taskStatus.downloadFaild,taskStatus.mergeFaild,taskStatus.parsingFailed,taskStatus.saveFolderNoExist].includes(o.status)"
-                                                        ></el-button>
+                                                        v-if="![taskStatus.done,taskStatus.downloadFaild,taskStatus.mergeFaild,taskStatus.parsingFailed,taskStatus.saveFolderNoExist].includes(o.status)"></el-button>
                                                     <el-button class="del is-text" circle type="" icon="el-icon-close"
                                                         @click="clickItemOptData" opt="delvideo" :data="o.id"
                                                         size="mini"></el-button>
                                                 </div>
                                                 <div class="bottom" v-if="[taskStatus.downloading].includes(o.status)">
-                                                    <el-progress :percentage="o.segment_downloaded*100/o.segment_total" :show-text="false" color="#8e71c7">
+                                                    <el-progress :percentage="o.segment_downloaded*100/o.segment_total"
+                                                        :show-text="false" color="#8e71c7">
                                                     </el-progress>
                                                 </div>
                                             </div>
@@ -141,8 +142,10 @@
                                                     v-model="taskName">
                                                 </el-input>
                                             </el-form-item>
-                                            <el-form-item v-if="playlists.length" :label="$t('newTask.inputs.quality.label')" label-position="right">
-                                                <el-select v-model="playlistUri" :placeholder="$t('newTask.inputs.quality.holder')"
+                                            <el-form-item v-if="playlists.length"
+                                                :label="$t('newTask.inputs.quality.label')" label-position="right">
+                                                <el-select v-model="playlistUri"
+                                                    :placeholder="$t('newTask.inputs.quality.holder')"
                                                     style="width: 100%;" @change="qualityChange">
                                                     <el-option v-for="playlist in playlists" :key="playlist.uri"
                                                         :label="getPlaylistLabel(playlist)" :value="playlist.uri">
@@ -152,8 +155,8 @@
                                             <el-form-item :label="$t('newTask.inputs.tags.label')"
                                                 label-position="right">
                                                 <el-radio-group v-model="taskTag" @change="clickChangeTaskTag">
-                                                    <el-radio-button v-for="tag in config_tags" :key="tag"
-                                                        :label="tag" />
+                                                    <el-radio-button v-for="category in config_categories"
+                                                        :key="category.tag" :label="category.tag" />
                                                 </el-radio-group>
                                             </el-form-item>
                                             <el-form-item :label="$t('newTask.inputs.urlPrefix.label')"
@@ -358,10 +361,11 @@
                         </el-tab-pane>
                         <el-tab-pane name="tab2_settings">
                             <span slot="label"><i class="el-icon-s-tools"></i> {{ $t('sidebar.settings') }}</span>
-                            <el-row :gutter="8">
+                            <el-row v-if="false" :gutter="8">
                                 <el-col :span="4" :offset="1">
-                                    <span
-                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.saveFolder.label')}}</span>
+                                    <span style="line-height: 40px;float: right;color: #ccc;">
+                                        {{$t('settings.inputs.saveFolder.label')}}
+                                    </span>
                                 </el-col>
                                 <el-col :span="15">
                                     <el-input :placeholder="$t('settings.inputs.saveFolder.holder')"
@@ -370,14 +374,62 @@
                                 </el-col>
                                 <el-col :span="3">
                                     <el-button class="mybutton" type="info" icon="el-icon-folder-opened"
-                                        @click="clickOpenConfigDir">{{$t('settings.buttons.browser')}}</el-button>
+                                        @click="clickOpenDir">{{$t('settings.buttons.browser')}}</el-button>
                                 </el-col>
                             </el-row>
                             <br />
                             <el-row :gutter="8">
                                 <el-col :span="4" :offset="1">
-                                    <span
-                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.tags.label')}}</span>
+                                    <span class="item-left">
+                                        {{$t('settings.inputs.saveFolder.label')}}
+                                    </span>
+                                </el-col>
+                                <el-col :span="18">
+                                    <el-row v-for="(category, index) in config_categories" :key="category.tag">
+                                        <el-col :span="20">
+                                            <el-input :readonly="true" :value="category.dir" class="task-category"
+                                                :type="category.star?'password':'text'"
+                                                :placeholder="$t('settings.inputs.saveFolder.holder')">
+                                                <template slot="prepend" class="el-tag--success el-tag--dar">
+                                                    <el-button
+                                                        @click="clickCategoryModify(category)">{{category.tag}}</el-button>
+                                                </template>
+                                                <template slot="append">
+                                                    <el-dropdown split-button type="primary"
+                                                        @click="clickCategorySelect(index)"
+                                                        @command="clickCategoryOption">
+                                                        {{$t('settings.buttons.browser')}}
+                                                        <template #dropdown>
+                                                            <el-dropdown-menu>
+                                                                <el-dropdown-item
+                                                                    :command="clickCategoryOptionBefore(index, category.star)"
+                                                                    style="font-size: 1.2rem; color: #a9a9a9;">
+                                                                    <i v-if="category.star"
+                                                                        class="fa-solid fa-eye-slash"></i>
+                                                                    <i v-else class="fa-regular fa-eye"></i>
+                                                                </el-dropdown-item>
+                                                                <el-dropdown-item v-if="config_categories.length > 1"
+                                                                    :command="clickCategoryOptionBefore(index, 'delete')">❌</el-dropdown-item>
+                                                            </el-dropdown-menu>
+                                                        </template>
+                                                    </el-dropdown>
+                                                </template>
+                                            </el-input>
+                                        </el-col>
+                                        <el-col v-if="index == 0" :span="4" class="text-right">
+                                            <el-button type="info"
+                                                @click="clickCategoryAddNew">{{$t('settings.inputs.tags.add')}}</el-button>
+                                        </el-col>
+                                    </el-row>
+
+                                </el-col>
+                            </el-row>
+                            <br />
+                            <el-row v-if="false" :gutter="8">
+                                <el-col :span="4" :offset="1">
+                                    <span class="item-left">
+                                        {{$t('settings.inputs.tags.label')}}
+                                    </span>
                                 </el-col>
                                 <el-col :span="18">
                                     <div>
@@ -396,7 +448,7 @@
                                     </div>
                                 </el-col>
                             </el-row>
-                            <br />
+                            <br v-if="false" />
                             <!-- <el-row :gutter="8">
                                 <el-col :span="4" :offset="1">
                                     <el-tooltip placement="bottom-start">
@@ -422,8 +474,9 @@
                             <br /> -->
                             <el-row :gutter="8">
                                 <el-col :span="4" :offset="1">
-                                    <span
-                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.proxy.label')}}</span>
+                                    <span class="item-left">
+                                        {{$t('settings.inputs.proxy.label')}}
+                                    </span>
                                 </el-col>
                                 <el-col :span="9">
                                     <el-input :placeholder="$t('settings.inputs.proxy.holder')" v-model="config_proxy"
@@ -441,8 +494,7 @@
                             <br />
                             <el-row :gutter="8">
                                 <el-col :span="4" :offset="1">
-                                    <span
-                                        style="line-height: 40px;float: right;color: #ccc;">{{$t('settings.inputs.log.label')}}</span>
+                                    <span class="item-left">{{$t('settings.inputs.log.label')}}</span>
                                 </el-col>
                                 <el-col :span="4">
                                     <el-button class="mybutton" type="info" icon="el-icon-view"
@@ -460,8 +512,7 @@
                             <br />
                             <el-row>
                                 <el-col :span="4" :offset="1">
-                                    <span
-                                        style="line-height: 40px;float: right;color: #ccc;margin-right: 10px;">{{$t('settings.inputs.language.label')}}</span>
+                                    <span class="item-left">{{$t('settings.inputs.language.label')}}</span>
                                 </el-col>
                                 <el-col :span="4">
                                     <el-select v-model="config_language" style="width: 100%;" @change="languageChange">
@@ -486,8 +537,9 @@
                             <br />
                             <el-row>
                                 <el-col :span="4" :offset="1">
-                                    <span
-                                        style="line-height: 40px;float: right;color: #ccc;margin-right: 10px;">{{$t('settings.buttons.closeBtn')}}</span>
+                                    <span class="item-left">
+                                        {{$t('settings.buttons.closeBtn')}}
+                                    </span>
                                 </el-col>
                                 <el-col :span="6">
                                     <el-select v-model="config_closeAppBehavior" style="width: 100%;"
@@ -507,7 +559,6 @@
                                 </el-col>
                             </el-row>
                             <el-row :gutter="8" style="position:fixed;bottom:2rem;width:82%;right:1rem;">
-
                                 <el-col :span="4" :offset="6" style="margin-right: 2rem;">
                                     <el-button class="mybutton" type="info" icon="el-icon- fab fa-github"
                                         style="max-width: 300px;"
@@ -557,6 +608,61 @@
                             <span
                                 style="width:70%;height:10vh;text-align:center;color:#cfcf00;white-space:pre-line">{{$t('buyMEcoffe.content')}}</span>
                         </el-row>
+                    </el-dialog>
+                    <el-dialog :title="dlg_category_title" :visible.sync="dlg_category_visible"
+                        :width="dlg_category_action == 'delete' ? '500px' : '70%'" :modal="true"
+                        :close-on-click-modal="true" :close-on-press-escape="true" :center="true"
+                        class="dialog-category task-category">
+                        <br />
+                        <br />
+                        <el-form :model="categoryForm" :rules="categoryRules" ref="categoryForm">
+                            <el-form-item label-width="8rem" :label="$t('settings.dialog.category.inputs.label')"
+                                prop="category">
+                                <span v-if="dlg_category_action == 'delete'"
+                                    class="text-white">：{{categoryForm.category}}</span>
+                                <el-input v-else :placeholder="$t('settings.dialog.category.inputs.holder')"
+                                    style="width: 15rem;" v-model="categoryForm.category" :maxlength="20">
+                                </el-input>
+                            </el-form-item>
+                            <br />
+                            <el-form-item label-width="8rem" :label="$t('settings.dialog.category.inputs.saveFolder')"
+                                prop="saveFolder">
+                                <span v-if="dlg_category_action == 'delete'"
+                                    class="text-white">：{{categoryForm.saveFolder}}</span>
+                                <el-input v-else :placeholder="$t('settings.inputs.saveFolder.holder')"
+                                    v-model="categoryForm.saveFolder" :readonly="true" :type="dlg_category_input_type">
+                                    <template slot="append">
+                                        <el-button class="mybutton" type="info" icon="el-icon-folder-opened"
+                                            @click="clickOpenDir">{{$t('settings.buttons.browser')}}</el-button>
+                                    </template>
+                                </el-input>
+                            </el-form-item>
+                            <br />
+                            <el-form-item v-if="dlg_category_action != 'delete'" label-width="8rem" label=""
+                                prop="star">
+                                <el-checkbox v-model="categoryForm.star" @change="handleChangeFolderStar"
+                                    :label="$t('settings.dialog.category.inputs.star')"></el-checkbox>
+                            </el-form-item>
+                        </el-form>
+                        <br />
+                        <div slot="footer" class="dialog-footer">
+                            <el-row :gutter="20">
+                                <el-col :span="8" :offset="4">
+                                    <el-button v-if="dlg_category_action == 'delete'" type="info"
+                                        @click="dlg_category_visible = false"
+                                        style="width: 100%;">{{$t('deleteTask.buttons.cancel')}}
+                                    </el-button>
+                                    <el-button v-else type="info" @click="resetForm('categoryForm')"
+                                        style="width: 100%;">{{$t('deleteTask.buttons.reset')}}
+                                    </el-button>
+                                </el-col>
+                                <el-col :span="8" :offset="1">
+                                    <el-button type="primary" @click="submitForm('categoryForm')"
+                                        style="width: 100%;">{{$t('deleteTask.buttons.ok')}}
+                                    </el-button>
+                                </el-col>
+                            </el-row>
+                        </div>
                     </el-dialog>
                 </el-main>
             </el-container>

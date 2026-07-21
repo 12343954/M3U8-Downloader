@@ -1,7 +1,7 @@
 {
   "name": "m3u8-downloader",
   "productName": "M3U8-Downloader",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "M3U8 Downloader, use for '.m3u8' url downloading.",
   "homepage": "https://github.com/12343954/M3U8-Downloader",
   "main": "main.js",
@@ -33,6 +33,7 @@
   },
   "scripts": {
     "start": "electron .",
+    "smoke": "node test/smoke.js",
     "pack-mac": "electron-builder --mac --publish always",
     "pack-win": "electron-builder --win --publish always",
     "pack-linux": "electron-builder --linux --publish always",

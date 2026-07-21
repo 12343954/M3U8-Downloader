@@ -64,7 +64,8 @@ const zhCN = {
         buttons: {
             ok: '确 定',
             cancel: '取 消',
-            withFile: '删除文件'
+            withFile: '删除文件',
+            reset: '重 置'
         }
     },
     singleDownload: {
@@ -165,13 +166,28 @@ const zhCN = {
                 '最小化到系统托盘',
                 '直接退出'
             ]
+        },
+        dialog: {
+            category: {
+                title: {
+                    add: '新增分类',
+                    modify: '修改分类',
+                    delete: '删除分类'
+                },
+                inputs: {
+                    label: '分类标签',
+                    holder: '请不要重复添加分类标签',
+                    saveFolder: '存储目录',
+                    star: '隐藏存储目录',
+                }
+            }
         }
     },
     message: {
         hello: '{msg} 全世界',
         title: '注意',
         enterM3U8: `请输入M3U8视频源`,
-        noSaveDir: '请先设置存储路径，再开始下载视频',
+        noSaveDir: '请先设置"分类: {category}"的存储路径，再开始下载',
         checkM3U8url: `正在检查链接...`,
         m3u8UrlError: `请输入正确的M3U8-URL或者导入(.m3u8)文件`,
     },
@@ -217,6 +233,11 @@ const zhCN = {
         wechat: '微信赞助',
         alipay: '支付宝赞助',
         paypal: 'PayPal赞助',
+    },
+    validateMessage: {
+        notEmpty: '{name} 不能为空！',
+        nameCannotBe: '{name} 不能是 {except}',
+        mustSelect: '请选择 {name}！'
     }
 }
 

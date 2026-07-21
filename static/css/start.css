@@ -222,7 +222,8 @@ body,
 .el-tag--dark.el-tag--danger {
     cursor: pointer;
     color: #fff;
-    background-color: var(--el-bg-color);;
+    background-color: var(--el-bg-color);
+    ;
     border-color: var(--el-color-danger-light-5);
 }
 
@@ -718,19 +719,19 @@ body,
 .heisir .main .TaskList .item .opt .bottom .el-progress-bar {
     width: 98%;
     /* background: -webkit-linear-gradient(90deg, #e13737,#515ae1,#40a20b); */
-    /* Chrome 10-25, Safari 5.1-6 */                          
+    /* Chrome 10-25, Safari 5.1-6 */
     /* background: linear-gradient(90deg, #e13737,#515ae1,#40a20b); */
-    /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */                                             
+    /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
 }
 
-.heisir .main .TaskList .item .opt .bottom .el-progress__text{
+.heisir .main .TaskList .item .opt .bottom .el-progress__text {
     font-size: 12px !important;
 }
 
-.heisir .main .TaskList .item .opt .bottom .el-progress-bar__outer{
+.heisir .main .TaskList .item .opt .bottom .el-progress-bar__outer {
     height: 4px !important;
-    background-color:#606266;
-  }
+    background-color: #606266;
+}
 
 .heisir .main .TaskList .item .opt .top {
     display: flex;
@@ -868,4 +869,97 @@ body,
 
 #tab_tags_div .active {
     background-color: #39383857;
+}
+
+.heisir .main .task-category {
+    margin-bottom: 10px;
+}
+
+.heisir .main .task-category .el-input-group__prepend {
+    color: #FFF;
+    background-color: #409EFF;
+    border-color: #409EFF;
+    min-width: 4rem;
+    text-align: center;
+}
+
+.heisir .main .task-category .el-input-group__append {
+    color: #FFF;
+    background-color: var(--el-bg-color);
+    border-color: var(--el-color-info-light-5);
+}
+
+.heisir .main .task-category .el-input-group__append .el-dropdown {
+    color: #FFF;
+}
+
+.heisir .main .task-category .el-input-group__append .el-button-group .el-button--primary:first-child {
+    border-right-color: transparent;
+}
+
+#pane-tab2_settings {
+    overflow: auto;
+    overflow-x: hidden;
+    height: calc(100% - 4rem);
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.item-left {
+    line-height: 40px;
+    float: right;
+    color: #ccc;
+    padding-right: 1rem;
+}
+
+.dialog-category .el-dialog {
+    max-width: 800px;
+}
+
+.text-white {
+    color: white;
+}
+
+.custom-confirm {
+    border: 1px solid #232323;
+    background-color: #303133;
+}
+
+.custom-confirm .el-button--default {
+    /* 默认样式，可能需要覆盖 */
+}
+
+.custom-confirm .el-button--info {
+    /* 确保 info 类型的样式生效 */
+    background-color: #909399;
+    border-color: #909399;
+    color: #fff;
+}
+
+.custom-confirm .el-button.info {
+    /* 为 cancelButton 添加 .info 类 */
+    background-color: #909399;
+    border-color: #909399;
+    color: #d5d5d5;
+}
+
+.custom-message-box .el-message-box__title {
+    color: #ffffff;
+}
+.custom-message-box .el-message-box__message{
+    color: #ffffff;
+}
+
+.custom-message-box .el-message-box__content {
+    padding: 20px;
+}
+
+.custom-message-box .el-message-box__message {
+    margin-bottom: 20px;
 }
