@@ -38,9 +38,9 @@
     "pack-win": "electron-builder --win --publish always",
     "pack-linux": "electron-builder --linux --publish always",
     "postinstall": "electron-builder install-app-deps",
-    "windows-latest": "yarn pack-win",
-    "macos-latest": "yarn pack-mac",
-    "ubuntu-latest": "yarn pack-linux"
+    "windows-latest": "electron-builder --win --publish always",
+    "macos-latest": "electron-builder --mac --publish always",
+    "ubuntu-latest": "electron-builder --linux --publish always"
   },
   "build": {
     "appId": "com.coolooai.m3u8-downloader",
