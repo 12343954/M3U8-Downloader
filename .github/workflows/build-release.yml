@@ -27,20 +27,19 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Enable Corepack
-        run: |
-          corepack enable
-          corepack prepare yarn@3.5.1 --activate
-          corepack yarn --version
+      - name: Check Yarn
+        run: node .yarn/releases/yarn-3.5.1.cjs --version
 
       - name: Install
-        run: corepack yarn install --immutable
+        run: node .yarn/releases/yarn-3.5.1.cjs install --immutable
+        env:
+          YARN_NODE_LINKER: node-modules
 
       - name: Smoke test
-        run: corepack yarn smoke
+        run: node .yarn/releases/yarn-3.5.1.cjs smoke
 
       - name: Build
-        run: corepack yarn ${{ matrix.os }}
+        run: node .yarn/releases/yarn-3.5.1.cjs ${{ matrix.os }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
