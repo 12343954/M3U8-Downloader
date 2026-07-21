@@ -28,8 +28,13 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
 
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare yarn@3.5.1 --activate
+
       - name: Install
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
 
       - name: Smoke test
         run: yarn smoke
