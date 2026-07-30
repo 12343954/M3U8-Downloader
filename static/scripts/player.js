@@ -1,4 +1,15 @@
 const { ipcRenderer } = require('electron');
+
+function positionRotationButton(imageBtn, muteBtn) {
+    if (!imageBtn || !muteBtn) return;
+    const rect = muteBtn.getBoundingClientRect();
+    if (!rect.width && !rect.height) return;
+    imageBtn.style.left = `${Math.max(0, rect.left - 50)}px`;
+    imageBtn.style.top = `${Math.max(0, rect.top + (rect.height - 38) / 2)}px`;
+    imageBtn.style.right = '';
+    imageBtn.style.bottom = '';
+}
+
 function addRotationButton() {
     if (document.getElementById('RotationButton')) return;
 
@@ -16,13 +27,14 @@ function addRotationButton() {
     imageBtn.style.cursor = 'pointer';
     imageBtn.style.width = '38px';
     imageBtn.style.height = '38px';
-    imageBtn.style.right = '150px';
-    imageBtn.style.bottom = '8px';
+    imageBtn.style.left = '0px';
+    imageBtn.style.top = '0px';
     imageBtn.style.zIndex = 99999;
     imageBtn.style.webkitAppRegion = 'no-drag';
 
     imageBtn.addEventListener('click', rotateVideo)
     document.body.appendChild(imageBtn);
+    positionRotationButton(imageBtn, muteBtn);
 }
 
 function rotateVideo() {
@@ -36,8 +48,7 @@ window.onresize = (e) => {
     var muteBtn = document.querySelector(`div[data-title=静音]`);
     var imageBtn = document.getElementById('RotationButton');
     if (!imageBtn) return;
-    imageBtn.style.right = '150px';
-    imageBtn.style.bottom = '8px';
+    positionRotationButton(imageBtn, muteBtn);
 }
 
 var player;
