@@ -4,7 +4,7 @@ const zhCN = {
         settings: '软件设置'
     },
     tabs: {
-        singleDownload: 'M3U8视频下载',
+        singleDownload: '视频下载',
         multiDownload: `M3U8批量下载`,
         mergeTS: `合并视频片段`
     },
@@ -18,7 +18,7 @@ const zhCN = {
         inputs: {
             url: {
                 label: '视频源',
-                holder: `在线视频源地址，或将M3U8文件拖拽至此`,
+                holder: `请输入 M3U8 地址或普通视频直链（MP4/FLV/MP3/WAV），也可拖拽 M3U8 文件`,
             },
             taskName: {
                 label: '任务名',
@@ -186,10 +186,10 @@ const zhCN = {
     message: {
         hello: '{msg} 全世界',
         title: '注意',
-        enterM3U8: `请输入M3U8视频源`,
+        enterM3U8: `请输入 M3U8 地址或普通视频直链`,
         noSaveDir: '请先设置"分类: {category}"的存储路径，再开始下载',
         checkM3U8url: `正在检查链接...`,
-        m3u8UrlError: `请输入正确的M3U8-URL或者导入(.m3u8)文件`,
+        m3u8UrlError: `请输入正确的视频 URL 或者导入(.m3u8)文件`,
     },
     taskStatus: {
         parsingFailed: "🚦解析失败！开关 HTTP代理 试试",
@@ -210,7 +210,7 @@ const zhCN = {
         done: "",//已完成
         downloadLiveStreaming: "下载直播中...[{count_downloaded}]",
         downloadButFaild: "⛔已完成，下载失败",
-        checkM3U8url: "解析 M3U8 资源中...",
+        checkM3U8url: "解析资源中...",
         saveFolderNoExist: "🚥\"存储目录\" 无效，请重设"
     },
     unit: {

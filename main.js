@@ -819,6 +819,20 @@ ipcMain.on('task-add', async function (event, object) {
         return;
     }
 
+    if (isDirectMediaUrl(m3u8_url)) {
+        code = 0;
+        info = i18n.t('task.parsingM3U8ok', { count_seg: 1 });
+        object.mediaUrl = object.mediaUrl || m3u8_url;
+        object.downloadType = 'media';
+        startDownloadMediaFile(object);
+        event.sender.send('task-add-reply', {
+            object: { ...object, ...{ status: taskStatus.downloading, statusText: info } },
+            code: code,
+            message: info
+        });
+        return;
+    }
+
     if (/^file:\/\/\//g.test(m3u8_url)) {
         parser.push(fs.readFileSync(m3u8_url.replace(/^file:\/\/\//g, '')));
         parser.end();
@@ -1145,6 +1159,88 @@ async function findFileByExt(dir, ext, retries = 20, interval = 500) {
         await sleep(interval);
     }
     return '';
+}
+
+function getUrlFileExt(url) {
+    const pathname = (() => {
+        try { return new URL(url).pathname; } catch (_) { return url.split('?')[0]; }
+    })();
+    return path.extname(pathname).toLowerCase() || '.mp4';
+}
+
+function isDirectMediaUrl(url) {
+    return /^https?:\/\/.*\.((mp4)|(flv)|(mp3)|(mpd)|(wav))(\?|$)/i.test(url);
+}
+
+async function startDownloadMediaFile(object) {
+    const id = object.id || new Date().getTime();
+    const taskName = object.taskName || `${id}`;
+    const mediaUrl = object.mediaUrl || object.url;
+    const ext = getUrlFileExt(mediaUrl);
+    const dir = getTaskDir(object.dir, taskName);
+    const outPath = path.join(object.dir, filenamify(taskName, { replacement: '_' }) + ext);
+    const tmpName = `${filenamify(taskName, { replacement: '_' })}${ext}.dl`;
+    const tmpPath = path.join(dir, tmpName);
+
+    !fs.existsSync(dir) && fs.mkdirSync(dir, { recursive: true });
+
+    const video = {
+        id,
+        url: object.sourceUrl || object.url,
+        mediaUrl,
+        downloadType: 'media',
+        dir,
+        segment_total: 1,
+        segment_downloaded: 0,
+        time: object.time || dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss"),
+        status: taskStatus.downloading,
+        statusText: i18n.t('task.downloading', { count_downloaded: 0, count_seg: 1, percent: percentFormat(0, 1) }),
+        isLiving: false,
+        headers: object.headers,
+        taskName,
+        tag: object.tag,
+        myKeyIV: object.myKeyIV,
+        taskIsDelTs: object.taskIsDelTs,
+        success: true,
+        videopath: ''
+    };
+
+    taskRuntime.start(id);
+    if (!videoDatas.some(k => k.id == id)) {
+        videoDatas.splice(0, 0, video);
+        mainWindow && mainWindow.webContents.send('task-notify-create', video);
+        saveDBdisk();
+    }
+
+    const result = await downloadFileWithRetry(mediaUrl, dir, {
+        filename: tmpName,
+        timeout: httpTimeout,
+        headers: object.headers,
+        agent: proxy_agent
+    }, id, 10);
+
+    if (result.canceled) {
+        taskRuntime.stop(id);
+        saveDBdisk();
+        return;
+    }
+
+    if (result.ok && fs.existsSync(tmpPath)) {
+        if (fs.existsSync(outPath)) safeUnlink(outPath);
+        fs.renameSync(tmpPath, outPath);
+        video.segment_downloaded = 1;
+        video.videopath = outPath;
+        video.status = taskStatus.done;
+        video.statusText = i18n.t('task.done');
+        safeRemoveDir(dir);
+    } else {
+        video.success = false;
+        video.status = taskStatus.downloadFaild;
+        video.statusText = i18n.t('task.downloadFaild');
+    }
+    taskRuntime.stop(id);
+    mainWindow && mainWindow.webContents.send('task-notify-end', video);
+    saveDBdisk();
 }
 
 async function startDownload(object, iidx) {
@@ -2076,6 +2172,8 @@ function toggleTaskRunning(arg) {
             if (Element.id == id) {
                 if (Element.isLiving == true) {
                     startDownloadLive(Element);
+                } else if (Element.downloadType === 'media') {
+                    startDownloadMediaFile(Element);
                 } else {
                     startDownload(Element);
                 }

@@ -16,7 +16,7 @@ const en = {
         inputs: {
             url: {
                 label: 'Source URL',
-                holder: `Paste a 'm3u8' url or drag a 'm3u8' file here`,
+                holder: `Paste an M3U8 URL or direct media URL (MP4/FLV/MP3/WAV), or drag an M3U8 file here`,
             },
             taskName: {
                 label: 'Task Name',
@@ -184,10 +184,10 @@ const en = {
     message: {
         hello: '{msg} world',
         title: 'Notice',
-        enterM3U8: `Please enter M3U8 source url`,
+        enterM3U8: `Please enter an M3U8 URL or direct media URL`,
         noSaveDir: `Must set the "Storage Folder" of "Category: {category}" before downloading`,
-        checkM3U8url: `Checking m3u8 url...`,
-        m3u8UrlError: `Please enter the correct M3U8-URL or import (.m3u8) file`,
+        checkM3U8url: `Checking URL...`,
+        m3u8UrlError: `Please enter the correct video URL or import (.m3u8) file`,
     },
     taskStatus: {
         parsingFailed: "🚦Parsing failed! turn On/Off \"HTTP Proxy\" to try.",
@@ -208,7 +208,7 @@ const en = {
         done: "",//Done
         downloadLiveStreaming: "Live Stream...[{count_downloaded}]",
         downloadButFaild: "⛔Done, but failed",
-        checkM3U8url: "Checking M3U8 resources...",
+        checkM3U8url: "Checking resource...",
         saveFolderNoExist: "🚥\"Save Folder\" not found, please reset"
     },
     unit: {

@@ -372,7 +372,7 @@ const _app = new Vue({
                     //https://xxx.com/m3u8/824388.m3u8 filmname
                     if (!clipText) return;
 
-                    if (/http(|s):\/\/(.*)\.m3u8/ig.test(clipText)) {
+                    if (/http(|s):\/\/(.*)\.((m3u8)|(mp4)|(flv)|(mp3)|(mpd)|(wav))(\?|$)/ig.test(clipText)) {
                         setTimeout(() => {
                             this.m3u8_url = clipText;
                             this.m3u8UrlChange();
