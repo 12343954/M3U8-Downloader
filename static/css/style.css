@@ -173,21 +173,30 @@ html {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    -webkit-app-region: drag;
 }
 
 .heisir .main.player .video {
     width: 100%;
     height: 100%;
     background-color: #000000;
-    -webkit-app-region: drag;
+    -webkit-app-region: no-drag;
 }
 
-.heisir .main.player .video * {
+#PlayerDragRegion {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 34px;
+    bottom: 86px;
+    z-index: 3;
     -webkit-app-region: drag;
 }
 
 #RotationButton,
+#player,
+#player *,
+.ckplayer,
+.ckplayer *,
 .ckplayer-control,
 .ckplayer-control *,
 .ckplayer-contral,
