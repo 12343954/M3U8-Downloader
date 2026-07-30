@@ -1,7 +1,12 @@
 const path = require('path');
 const fs = require('fs');
 const download = require('download');
+const got = require('got');
 const filenamify = require('filenamify');
+const { pipeline } = require('stream');
+const { promisify } = require('util');
+
+const streamPipeline = promisify(pipeline);
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -69,11 +74,60 @@ function createDownloadHelpers({ logger, isTaskActive }) {
         return { ok: false };
     }
 
+    async function downloadFileStreamWithRetry(uri, filePath, options, taskId, maxRetries = 10, onProgress) {
+        const gotOptions = { ...options };
+        delete gotOptions.filename;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            if (taskId != null && isTaskActive && !isTaskActive(taskId)) {
+                return { ok: false, canceled: true };
+            }
+
+            try {
+                fs.mkdirSync(path.dirname(filePath), { recursive: true });
+                const stream = got.stream(uri, gotOptions);
+                let interval;
+
+                stream.on('downloadProgress', progress => {
+                    if (onProgress) onProgress(progress, attempt);
+                });
+
+                stream.on('request', req => {
+                    interval = setInterval(() => {
+                        if (taskId != null && isTaskActive && !isTaskActive(taskId)) {
+                            req.destroy();
+                        }
+                    }, 100);
+                    req.once('close', () => clearInterval(interval));
+                    req.once('error', () => clearInterval(interval));
+                });
+
+                await streamPipeline(stream, fs.createWriteStream(filePath));
+                if (interval) clearInterval(interval);
+
+                if (!fs.existsSync(filePath) || fs.statSync(filePath).size <= 0) {
+                    throw new Error(`downloaded file is empty: ${filePath}`);
+                }
+                return { ok: true };
+            } catch (err) {
+                logger && logger.error(`stream download failed, attempt=${attempt}/${maxRetries}, url=${uri}, error=${err && (err.code || err.message || err)}`);
+                safeUnlink(filePath);
+                if (taskId != null && isTaskActive && !isTaskActive(taskId)) {
+                    return { ok: false, canceled: true, error: err };
+                }
+                if (attempt >= maxRetries) return { ok: false, error: err };
+                await delay(Math.min(30000, 1000 * attempt * attempt));
+            }
+        }
+        return { ok: false };
+    }
+
     return {
         safeUnlink,
         safeRemoveDir,
         getTaskDir,
-        downloadFileWithRetry
+        downloadFileWithRetry,
+        downloadFileStreamWithRetry
     };
 }
 

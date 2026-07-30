@@ -124,7 +124,8 @@ const {
     safeUnlink,
     safeRemoveDir,
     getTaskDir,
-    downloadFileWithRetry
+    downloadFileWithRetry,
+    downloadFileStreamWithRetry
 } = createDownloadHelpers({
     logger,
     isTaskActive: taskRuntime.isActive
@@ -1212,12 +1213,22 @@ async function startDownloadMediaFile(object) {
         saveDBdisk();
     }
 
-    const result = await downloadFileWithRetry(mediaUrl, dir, {
-        filename: tmpName,
+    const result = await downloadFileStreamWithRetry(mediaUrl, tmpPath, {
         timeout: httpTimeout,
         headers: object.headers,
         agent: proxy_agent
-    }, id, 10);
+    }, id, 10, progress => {
+        const total = progress.total || 0;
+        const transferred = progress.transferred || 0;
+        const percent = total > 0 ? Math.min(100, Math.floor((transferred / total) * 100)) : 0;
+        video.segment_downloaded = transferred;
+        video.segment_total = total || 1;
+        video.status = taskStatus.downloading;
+        video.statusText = total > 0
+            ? i18n.t('task.downloading', { count_downloaded: transferred, count_seg: total, percent: `${percent}%` })
+            : i18n.t('task.downloading', { count_downloaded: transferred, count_seg: 1, percent: percentFormat(0, 1) });
+        mainWindow && mainWindow.webContents.send('task-notify-update', video);
+    });
 
     if (result.canceled) {
         taskRuntime.stop(id);
@@ -1228,7 +1239,7 @@ async function startDownloadMediaFile(object) {
     if (result.ok && fs.existsSync(tmpPath)) {
         if (fs.existsSync(outPath)) safeUnlink(outPath);
         fs.renameSync(tmpPath, outPath);
-        video.segment_downloaded = 1;
+        video.segment_downloaded = video.segment_total || 1;
         video.videopath = outPath;
         video.status = taskStatus.done;
         video.statusText = i18n.t('task.done');
