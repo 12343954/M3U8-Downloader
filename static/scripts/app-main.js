@@ -872,14 +872,16 @@ const _app = new Vue({
         handleTagFilte: function (ANode) {
             this.pager_currPage = 1
             this.tabMain = 'tab1_download'
-            const tag = ANode.innerText
+            const tag = ANode.innerText.trim()
             if (tag == this.current_tag) {
                 ANode.classList.remove('active')
+                this.current_tag = ''
                 window.current_tag = '';    // 提升参数级别到顶级window，方便调用                this.current_tag = ''
             } else {
                 window.current_tag = tag;       // 提升参数级别到顶级window，方便调用                this.current_tag = tag
                 ANode.parentNode.parentNode.querySelector('.active')?.classList.remove('active')
                 ANode.classList.add('active')
+                this.current_tag = tag
             }
 
             const { list, total } = this.pagination()

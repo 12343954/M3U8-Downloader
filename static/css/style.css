@@ -173,12 +173,34 @@ html {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    -webkit-app-region: drag;
 }
 
 .heisir .main.player .video {
     width: 100%;
     height: 100%;
     background-color: #000000;
+    -webkit-app-region: drag;
+}
+
+.heisir .main.player .video * {
+    -webkit-app-region: drag;
+}
+
+#RotationButton,
+.ckplayer-control,
+.ckplayer-control *,
+.ckplayer-contral,
+.ckplayer-contral *,
+.ckplayer-controls,
+.ckplayer-controls *,
+.heisir .main.player .video .ckplayer-control,
+.heisir .main.player .video .ckplayer-control *,
+.heisir .main.player .video .ckplayer-contral,
+.heisir .main.player .video .ckplayer-contral *,
+.heisir .main.player .video .ckplayer-controls,
+.heisir .main.player .video .ckplayer-controls * {
+    -webkit-app-region: no-drag;
 }
 
 .heisir .main .addTask {

@@ -101,7 +101,7 @@ function fileLengthFormat(total, n) {
                 format = len.toFixed(2) + " PB";
                 break;
         }
-        return format.replace(/\.00|(\.\d)0/, '$1');
+        return format;
     }
 }
 
