@@ -1136,6 +1136,17 @@ function countExistingSegments(dir, total) {
     return count;
 }
 
+async function findFileByExt(dir, ext, retries = 20, interval = 500) {
+    for (let i = 0; i < retries; i++) {
+        if (fs.existsSync(dir)) {
+            const file = fs.readdirSync(dir).find(item => path.extname(item).toLowerCase() === ext);
+            if (file) return path.join(dir, file);
+        }
+        await sleep(interval);
+    }
+    return '';
+}
+
 async function startDownload(object, iidx) {
     let id = !object.id ? (iidx != null ? (new Date().getTime() + iidx) : new Date().getTime()) : object.id;
     let headers = object.headers;
@@ -1325,10 +1336,9 @@ async function startDownload(object, iidx) {
                     video.videopath = "";
                     if (fs.existsSync(outPathMP4)) {
                         if (video.audio) {
-                            const files = fs.readdirSync(video.dir);
-                            const m4a = files.find(file => path.extname(file).toLowerCase() === '.m4a');
+                            const m4aPath = await findFileByExt(video.dir, '.m4a');
 
-                            if (m4a) {
+                            if (m4aPath) {
                                 const newMP4 = path.join(video.dir, Date.now() + ".mp4");
 
                                 // let stream2 = new FFmpegStreamReadable(null);
@@ -1336,7 +1346,7 @@ async function startDownload(object, iidx) {
                                 new ffmpeg()
                                     // .setFfmpegPath(ffmpegPath)
                                     .input(outPathMP4)
-                                    .input(path.join(video.dir, m4a))
+                                    .input(m4aPath)
                                     .outputOptions([
                                         '-c:v copy',     // copy video, not transcoding
                                         '-c:a copy',     // copy audio, not transcoding
@@ -1361,6 +1371,9 @@ async function startDownload(object, iidx) {
                                         video.videopath = outNewPathMP4;
 
                                         if (video.taskIsDelTs) {
+                                            safeUnlink(outPathMP4);
+                                            safeUnlink(m4aPath);
+                                            safeRemoveDir(path.join(dir, 'aud'));
                                             safeRemoveDir(dir);
                                         }
 
@@ -1377,6 +1390,13 @@ async function startDownload(object, iidx) {
                                     .on('error', (err) => {
                                         console.error('merge (mp4 + m4a) error:', err.message);
                                     })
+                            } else {
+                                video.videopath = outPathMP4;
+                                video.status = taskStatus.mergeFaild;
+                                video.statusText = i18n.t('task.mergeFaild')
+                                mainWindow.webContents.send('task-notify-end', video);
+                                logger.error(`audio m4a not found, dir=${video.dir}`);
+                                saveDBdisk();
                             }
                         }
                         else {
