@@ -34,7 +34,7 @@ const forever = require('forever-monitor');
 const filenamify = require('filenamify');
 const { HttpProxyAgent, HttpsProxyAgent } = require('hpagent');
 const { taskStatus, httpHeader, percentFormat, dateFormat } = require('./static/scripts/global-vars')
-const { getVideoDuration, getVideoSize } = require('./static/scripts/get-video-duration')
+const { getVideoDuration, getVideoSize, fileLengthFormat } = require('./static/scripts/get-video-duration')
 const { createDownloadHelpers } = require('./src/main/download-utils')
 const { createTaskRuntime } = require('./src/main/task-runtime')
 const { resolveHttpUri, resolveMediaUri, resolveKeyUri } = require('./src/main/url-resolver')
@@ -1225,8 +1225,8 @@ async function startDownloadMediaFile(object) {
         video.segment_total = total || 1;
         video.status = taskStatus.downloading;
         video.statusText = total > 0
-            ? i18n.t('task.downloading', { count_downloaded: transferred, count_seg: total, percent: `${percent}%` })
-            : i18n.t('task.downloading', { count_downloaded: transferred, count_seg: 1, percent: percentFormat(0, 1) });
+            ? i18n.t('task.downloading', { count_downloaded: fileLengthFormat(transferred, 1), count_seg: fileLengthFormat(total, 1), percent: `${percent}%` })
+            : i18n.t('task.downloading', { count_downloaded: fileLengthFormat(transferred, 1), count_seg: '--', percent: percentFormat(0, 1) });
         mainWindow && mainWindow.webContents.send('task-notify-update', video);
     });
 

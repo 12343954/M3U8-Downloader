@@ -120,5 +120,6 @@ async function getVideoSize(path) {
 
 module.exports = {
     getVideoDuration,
-    getVideoSize
+    getVideoSize,
+    fileLengthFormat
 };
