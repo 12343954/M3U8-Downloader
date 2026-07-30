@@ -1174,6 +1174,15 @@ function isDirectMediaUrl(url) {
     return /^https?:\/\/.*\.((mp4)|(flv)|(mp3)|(mpd)|(wav))(\?|$)/i.test(url);
 }
 
+function saveVideoData(video) {
+    const idx = videoDatas.findIndex(k => k.id == video.id);
+    if (idx >= 0) {
+        videoDatas.splice(idx, 1, { ...videoDatas[idx], ...video });
+    } else {
+        videoDatas.splice(0, 0, video);
+    }
+}
+
 async function startDownloadMediaFile(object) {
     const id = object.id || new Date().getTime();
     const taskName = object.taskName || `${id}`;
@@ -1233,6 +1242,7 @@ async function startDownloadMediaFile(object) {
 
     if (result.canceled) {
         taskRuntime.stop(id);
+        saveVideoData(video);
         saveDBdisk();
         return;
     }
@@ -1263,6 +1273,7 @@ async function startDownloadMediaFile(object) {
         video.statusText = i18n.t('task.downloadFaild');
     }
     taskRuntime.stop(id);
+    saveVideoData(video);
     mainWindow && mainWindow.webContents.send('task-notify-end', video);
     saveDBdisk();
 }
