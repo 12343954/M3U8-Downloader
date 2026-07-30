@@ -1243,6 +1243,18 @@ async function startDownloadMediaFile(object) {
         video.videopath = outPath;
         video.status = taskStatus.done;
         video.statusText = i18n.t('task.done');
+        let mediaStatusText = video.statusText;
+        try {
+            mediaStatusText = await getVideoDuration(outPath) || mediaStatusText;
+        } catch (error) {
+            logger.error(error);
+        }
+        try {
+            video.statusText = mediaStatusText + '\u3000\u3000\u3000\u3000' + await getVideoSize(outPath);
+        } catch (error) {
+            logger.error(error);
+            video.statusText = mediaStatusText;
+        }
         safeRemoveDir(dir);
     } else {
         video.success = false;
