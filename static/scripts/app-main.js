@@ -440,6 +440,7 @@ const _app = new Vue({
                 ipcRenderer.send('task-add', {
                     id: id,
                     url: m3u8_url,
+                    sourceUrl: this.m3u8_url,
                     audio: this.m3u8_audio_url,
                     headers: this.headers,
                     myKeyIV: this.myKeyIV,

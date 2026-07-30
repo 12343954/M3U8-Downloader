@@ -770,6 +770,7 @@ ipcMain.on('task-clear', async function (event, object) {
 
 ipcMain.on('task-add', async function (event, object) {
     let m3u8_url = object.url;
+    object.sourceUrl = object.sourceUrl || object.url;
     let _headers = {};
     let code = -1;
     let info = i18n.t('task.parsingFailed') // 解析资源失败
@@ -845,6 +846,7 @@ ipcMain.on('task-add', async function (event, object) {
                     else {
                         m3u8_url = uri;
                     }
+                    object.mediaUrl = m3u8_url;
                     object.url = m3u8_url;
                     parser = new Parser();
                     continue;
@@ -1124,6 +1126,16 @@ function getDownloadConcurrency() {
     const value = Number.parseInt(nconf.get('downloadConcurrency') || nconf.get('config_downloadConcurrency') || 3);
     return Number.isFinite(value) && value > 0 ? value : 3;
 }
+
+function countExistingSegments(dir, total) {
+    let count = 0;
+    for (let i = 0; i < total; i++) {
+        const filepath = path.join(dir, `${((i + 1) + '').padStart(6, '0')}.ts`);
+        if (fs.existsSync(filepath) && fs.statSync(filepath).size > 0) count++;
+    }
+    return count;
+}
+
 async function startDownload(object, iidx) {
     let id = !object.id ? (iidx != null ? (new Date().getTime() + iidx) : new Date().getTime()) : object.id;
     let headers = object.headers;
@@ -1131,7 +1143,8 @@ async function startDownload(object, iidx) {
     let taskName = object.taskName;
     const taskTag = object.tag;
     let myKeyIV = object.myKeyIV;
-    let url = object.url;
+    const sourceUrl = object.sourceUrl || object.url;
+    let url = object.mediaUrl || object.url;
     let url_audio = object.audio;
     let taskIsDelTs = object.taskIsDelTs;
     if (!taskName) {
@@ -1188,7 +1201,8 @@ async function startDownload(object, iidx) {
     var video = {
         id: id,
         url_prefix: url_prefix,
-        url: url,
+        url: sourceUrl,
+        mediaUrl: url,
         audio: url_audio,
         dir: dir,
         segment_total: count_seg,
@@ -1214,6 +1228,7 @@ async function startDownload(object, iidx) {
             uri: segments[0].map.uri
         })
         video.segment_total = segments.length;
+        count_seg = segments.length;
     }
 
     if (!object.id) {
@@ -1263,6 +1278,7 @@ async function startDownload(object, iidx) {
     }
     tsQueues.drain(async () => {
         if (!video.success) return;
+        video.segment_downloaded = countExistingSegments(dir, video.segment_total);
         if (video.segment_downloaded != video.segment_total) return;
 
         logger.info(`Download vidoe ok! ${id}`);
@@ -1439,6 +1455,7 @@ async function startDownloadAudio(object, iidx) {
     let taskName = object.taskName;
     const taskTag = object.tag;
     let myKeyIV = object.myKeyIV;
+    const sourceUrl = object.sourceUrl || object.url;
     let url = object.audio;
     let taskIsDelTs = object.taskIsDelTs;
     if (!taskName) {
@@ -1490,7 +1507,8 @@ async function startDownloadAudio(object, iidx) {
     var audio = {
         id: id,
         url_prefix: url_prefix,
-        url: url,
+        url: sourceUrl,
+        mediaUrl: url,
         audio: url,
         dir: dir,
         segment_total: count_seg,
@@ -1516,6 +1534,7 @@ async function startDownloadAudio(object, iidx) {
             uri: segments[0].map.uri
         })
         audio.segment_total += 1;
+        count_seg = segments.length;
     }
 
     for (let iSeg = 0; iSeg < segments.length; iSeg++) {
@@ -1548,6 +1567,7 @@ async function startDownloadAudio(object, iidx) {
     }
     tsQueues.drain(async () => {
         if (!audio.success) return;
+        audio.segment_downloaded = countExistingSegments(dir, audio.segment_total);
         if (audio.segment_downloaded != audio.segment_total) return;
 
         logger.info(`Download audio ok! ${id}`);
