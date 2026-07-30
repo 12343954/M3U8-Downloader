@@ -2177,15 +2177,20 @@ ipcMain.on('player-pin-on-top', function (event, isTop) {
 
 ipcMain.on('player-window-drag-start', function (event, point) {
     if (!playerWindow) return;
-    const [x, y] = playerWindow.getPosition();
-    playerWindowDrag = { windowX: x, windowY: y, mouseX: point.x, mouseY: point.y };
+    const bounds = playerWindow.getBounds();
+    playerWindowDrag = { windowX: bounds.x, windowY: bounds.y, width: bounds.width, height: bounds.height, mouseX: point.x, mouseY: point.y };
 });
 
 ipcMain.on('player-window-drag-move', function (event, point) {
     if (!playerWindow || !playerWindowDrag) return;
     const x = playerWindowDrag.windowX + point.x - playerWindowDrag.mouseX;
     const y = playerWindowDrag.windowY + point.y - playerWindowDrag.mouseY;
-    playerWindow.setPosition(Math.round(x), Math.round(y));
+    playerWindow.setBounds({
+        x: Math.round(x),
+        y: Math.round(y),
+        width: playerWindowDrag.width,
+        height: playerWindowDrag.height
+    });
 });
 
 ipcMain.on('player-window-drag-end', function () {
