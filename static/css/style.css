@@ -182,16 +182,6 @@ html {
     -webkit-app-region: no-drag;
 }
 
-#PlayerDragRegion {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: 34px;
-    bottom: 86px;
-    z-index: 3;
-    -webkit-app-region: drag;
-}
-
 #RotationButton,
 #player,
 #player *,

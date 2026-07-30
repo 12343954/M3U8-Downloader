@@ -53,6 +53,40 @@ window.onresize = (e) => {
 
 var player;
 var rotation = 0;
+var playerDrag = null;
+var suppressPlayerClick = false;
+
+function bindPlayerWindowDrag() {
+    if (document.body.dataset.playerDragBound) return;
+    document.body.dataset.playerDragBound = 'true';
+    document.addEventListener('mousedown', e => {
+        if (e.button !== 0 || e.target?.id === 'RotationButton') return;
+        if (e.clientY < 34 || e.clientY > window.innerHeight - 86) return;
+        playerDrag = { x: e.screenX, y: e.screenY, moved: false };
+    }, true);
+    document.addEventListener('mousemove', e => {
+        if (!playerDrag) return;
+        const dx = e.screenX - playerDrag.x;
+        const dy = e.screenY - playerDrag.y;
+        if (!playerDrag.moved && Math.abs(dx) + Math.abs(dy) <= 6) return;
+        if (!playerDrag.moved) {
+            playerDrag.moved = true;
+            suppressPlayerClick = true;
+            ipcRenderer.send('player-window-drag-start', { x: playerDrag.x, y: playerDrag.y });
+        }
+        ipcRenderer.send('player-window-drag-move', { x: e.screenX, y: e.screenY });
+    }, true);
+    document.addEventListener('mouseup', () => {
+        playerDrag = null;
+        ipcRenderer.send('player-window-drag-end');
+    }, true);
+    document.addEventListener('click', e => {
+        if (!suppressPlayerClick) return;
+        suppressPlayerClick = false;
+        e.stopPropagation();
+        e.preventDefault();
+    }, true);
+}
 
 function getParameterByName(url, name) {
     name = name.replace(/[\[]/, '\\\[').replace(/[\]]/, '\\\]');
@@ -94,6 +128,7 @@ ipcRenderer.on('message', (_, { platform, playsrc, title, isTop }) => {
         } else {
             player = new ckplayer(videoObject);
         }
+        bindPlayerWindowDrag();
         setTimeout(() => {
             const logo = document.querySelectorAll('img')[1];
             if (logo) logo.style.display = 'none';
